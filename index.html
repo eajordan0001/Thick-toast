@@ -55,8 +55,8 @@
 <div class="container">
     <div id="welcome" style="text-align:center; padding: 40px 20px;">
         <div style="font-size: 50px;">🍞</div>
-        <h3>貼上對話或匯出清單</h3>
-        <p style="font-size:13px; color:#888;">系統會自動辨識姓名與數量</p>
+        <h3>貼上清單或對話內容</h3>
+        <p style="font-size:13px; color:#888;">系統會自動計算各區間運費</p>
     </div>
 
     <div id="order-ui" style="display:none">
@@ -75,7 +75,7 @@
         <div>總計：<b id="t-qty" style="color:var(--main)">0</b> 片</div>
         <div style="font-size: 12px; color: #888;">應付：$<span id="total">0</span></div>
     </div>
-    <textarea class="coop-textarea" id="coop-input" placeholder="可貼上 App 匯出的清單核對內容..."></textarea>
+    <textarea class="coop-textarea" id="coop-input" placeholder="可貼上清單文字進行二次整理..."></textarea>
     <div class="coop-btns">
         <button class="btn-organize" onclick="organizeText()">整理清單</button>
         <button class="btn-final-line" onclick="goLine()">匯出最終 LINE</button>
@@ -137,10 +137,21 @@
         document.getElementById('menu-container').innerHTML = h;
     }
 
+    function getFeeInfo(totalQty) {
+        if (totalQty === 0) return { fee: 0, note: "" };
+        if (totalQty >= 520) return { fee: 0, note: "($0，滿520片免運)" };
+        if (totalQty <= 20) return { fee: 240, note: "($240，1-20片)" };
+        if (totalQty <= 50) return { fee: 260, note: "($260，21-50片)" };
+        if (totalQty <= 60) return { fee: 290, note: "($290，51-60片)" };
+        if (totalQty <= 70) return { fee: 320, note: "($320，61-70片)" };
+        if (totalQty <= 90) return { fee: 350, note: "($350，71-90片)" };
+        if (totalQty <= 129) return { fee: 380, note: "($380，91-129片)" };
+        return { fee: 130, note: "($130，分箱運費補貼)" };
+    }
+
     function organizeText() {
         const text = document.getElementById('coop-input').value;
         if(!text.trim()) return alert("請先輸入內容");
-        
         const allItems = menuData.flatMap(g => g.items);
         const lines = text.split('\n');
         tempOrders = [];
@@ -151,20 +162,16 @@
             if(!cleanLine || cleanLine.includes("總計") || cleanLine.includes("運費") || cleanLine.includes("小計") || cleanLine.includes("應付")) return;
 
             const personMatch = cleanLine.match(/^([^\\s\\+x:\\d]{2,})/);
-            if(personMatch) {
-                const potentialName = personMatch[1].trim();
-                if(!allItems.some(item => potentialName.includes(item))) {
-                    currentPerson = potentialName;
-                }
+            if(personMatch && !allItems.some(item => personMatch[1].includes(item))) {
+                currentPerson = personMatch[1].trim();
             }
 
             allItems.forEach(item => {
                 if (cleanLine.includes(item)) {
                     let qty = 0;
                     const xMatch = cleanLine.match(new RegExp(`${item}.*?[xX\\+\\*\\s](\\d+)`));
-                    if(xMatch) {
-                        qty = parseInt(xMatch[1]);
-                    } else {
+                    if(xMatch) { qty = parseInt(xMatch[1]); } 
+                    else {
                         const parts = cleanLine.split(/\s+/);
                         const lastPart = parts[parts.length - 1];
                         if(/^\d+$/.test(lastPart)) qty = parseInt(lastPart);
@@ -183,9 +190,7 @@
             let reportH = tempOrders.map(o => `<b>${o.userName}</b>：${o.item} x ${o.qty}`).join('<br>');
             document.getElementById('report-list').innerHTML = reportH;
             document.getElementById('report-modal').style.display = 'flex';
-        } else {
-            alert("❌ 解析失敗！無法辨識品項或數量。");
-        }
+        } else { alert("❌ 解析失敗！請檢查格式。"); }
     }
 
     function closeReport(confirm) {
@@ -197,43 +202,27 @@
                 if(existing) { existing.q += o.qty; } else { user.orders.push({n: o.item, p: o.price, q: o.qty}); }
             });
             document.getElementById('coop-input').value = ''; 
-            if(cur < 0) cur = 0;
-            render();
+            if(cur < 0) cur = 0; render();
         }
         document.getElementById('report-modal').style.display = 'none';
         tempOrders = [];
     }
 
-    function getFeeInfo(totalQty) {
-        if (totalQty === 0) return { fee: 0, note: "" };
-        if (totalQty >= 520) return { fee: 0, note: "(滿520片免運)" };
-        if (totalQty <= 20) return { fee: 240, note: "(1-20片)" };
-        if (totalQty <= 50) return { fee: 260, note: "(21-50片)" };
-        if (totalQty <= 60) return { fee: 290, note: "(51-60片)" };
-        if (totalQty <= 70) return { fee: 320, note: "(61-70片)" };
-        if (totalQty <= 90) return { fee: 350, note: "(71-90片)" };
-        if (totalQty <= 129) return { fee: 380, note: "(91-129片)" };
-        return { fee: 130, note: "(分箱補貼)" };
-    }
-
     function showM(s){ document.getElementById('modal').style.display=s?'flex':'none'; }
     function addU(){ 
         let n=document.getElementById('name-in').value.trim(); 
-        if(n){ users.push({name:n,orders:[]}); cur=users.length-1; showM(false); document.getElementById('name-in').value=''; render(); }
+        if(n){ users.push({name:n,orders:[]}); cur=users.length-1; showM(false); render(); }
     }
     function setI(el){ document.querySelectorAll('.i-opt').forEach(b=>b.classList.remove('active')); el.classList.add('active'); }
     function adj(btn,d){ event.stopPropagation(); let input=btn.parentNode.querySelector('.qty-input'); let v=(parseInt(input.value) || 0)+d; if(v<1) v=1; input.value=v; }
     function quickAdd(btn) {
         event.stopPropagation();
-        if(cur < 0) return alert("請先點選上方的人員標籤");
-        let row = btn.closest('.i-opt');
-        let q = parseInt(row.querySelector('.qty-input').value) || 1;
-        let name = row.dataset.name;
-        let price = parseInt(row.dataset.price);
+        if(cur < 0) return alert("請先選擇上方人員");
+        let row = btn.closest('.i-opt'), q = parseInt(row.querySelector('.qty-input').value) || 1;
+        let name = row.dataset.name, price = parseInt(row.dataset.price);
         let existing = users[cur].orders.find(o => o.n === name);
         if (existing) { existing.q += q; } else { users[cur].orders.push({ n:name, p:price, q:q }); }
-        row.querySelector('.qty-input').value = 1;
-        render();
+        row.querySelector('.qty-input').value = 1; render();
     }
 
     function render(){
@@ -253,10 +242,10 @@
             users[cur].orders.forEach((o,oi)=>oh+=`<div class="order-item"><div><b>${o.n}</b> ($${o.p})<br><small>${o.q}片 = $${o.p*o.q}</small></div><button onclick="users[${cur}].orders.splice(${oi},1);render()" style="color:var(--red);border:1px solid;padding:5px;border-radius:5px;background:none;">刪除</button></div>`);
             document.getElementById('items-box').innerHTML=oh || '<p style="text-align:center;color:#aaa">點擊下方口味加入</p>';
         } else { document.getElementById('welcome').style.display='block'; document.getElementById('order-ui').style.display='none'; }
-        let feeInfo = getFeeInfo(totalQty);
+        let f = getFeeInfo(totalQty);
         document.getElementById('t-qty').innerText = totalQty;
-        document.getElementById('total').innerText = totalMoney + feeInfo.fee;
-        localStorage.setItem('thickToastV60', JSON.stringify(users));
+        document.getElementById('total').innerText = totalMoney + f.fee;
+        localStorage.setItem('thickToastV61', JSON.stringify(users));
     }
 
     function goLine(){
@@ -264,25 +253,22 @@
         let m="【🍞 厚片吐司團購彙整報表】\n\n", totalQty=0, totalMoney=0, summary={};
         users.forEach(u=>{
             if(u.orders.length){
-                let uQ = u.orders.reduce((s,o)=>s+o.q,0);
-                let uM = u.orders.reduce((s,o)=>s+(o.p*o.q),0);
+                let uQ = u.orders.reduce((s,o)=>s+o.q,0), uM = u.orders.reduce((s,o)=>s+(o.p*o.q),0);
                 totalQty += uQ; totalMoney += uM;
                 m += `👤 [${u.name}]：${uQ}片\n`;
                 u.orders.forEach(o=>{ m += `▫️ ${o.n} ($${o.p}) x ${o.q}\n`; summary[o.n] = (summary[o.n] || 0) + o.q; });
                 m += `💰 小計：$${uM}\n\n`;
             }
         });
-        let feeInfo = getFeeInfo(totalQty);
+        let f = getFeeInfo(totalQty);
         m += `==================\n📦 【出貨統計總表】\n`;
-        Object.keys(summary).sort().forEach(k => {
-            m += `▪️ ${k}：${summary[k]} 片 ${(summary[k]%5===0)?'':'⚠️'}\n`;
-        });
-        m += `==================\n🏠 總計：${totalQty} 片\n🚚 運費：$${feeInfo.fee} ${feeInfo.note}\n💰 總應付：$${totalMoney + feeInfo.fee} 元`;
+        Object.keys(summary).sort().forEach(k => { m += `▪️ ${k}：${summary[k]} 片 ${(summary[k]%5===0)?'':'⚠️'}\n`; });
+        m += `==================\n🏠 總片數：${totalQty} 片\n🚚 運費：${f.note}\n💰 總應付：$${totalMoney + f.fee} 元`;
         window.location.href="https://line.me/R/msg/text/?"+encodeURIComponent(m);
     }
 
     window.onload = function() {
-        const saved = localStorage.getItem('thickToastV60');
+        const saved = localStorage.getItem('thickToastV61');
         if (saved) users = JSON.parse(saved);
         initMenu(); render();
     };
