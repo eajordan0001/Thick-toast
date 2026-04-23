@@ -44,7 +44,7 @@
 </head>
 <body>
 
-<div class="header">厚片吐司團購助手 V5.9</div>
+<div class="header">厚片吐司團購助手</div>
 <div class="price-info">
     ⚠️ 每種口味請以 5 的倍數下單，不可以零散訂購喔！<br>
     🚚 滿 520 片免運費
@@ -56,7 +56,7 @@
     <div id="welcome" style="text-align:center; padding: 40px 20px;">
         <div style="font-size: 50px;">🍞</div>
         <h3>貼上對話或匯出清單</h3>
-        <p style="font-size:13px; color:#888;">系統會自動過濾符號與單價數字</p>
+        <p style="font-size:13px; color:#888;">系統會自動辨識姓名與數量</p>
     </div>
 
     <div id="order-ui" style="display:none">
@@ -147,29 +147,24 @@
         let currentPerson = "";
 
         lines.forEach(line => {
-            // 移除裝飾用符號，統一格式
             let cleanLine = line.replace(/[▫️▪️\[\]👤💰▪]/g, '').trim();
-            if(!cleanLine || cleanLine.includes("總計") || cleanLine.includes("運費") || cleanLine.includes("小計")) return;
+            if(!cleanLine || cleanLine.includes("總計") || cleanLine.includes("運費") || cleanLine.includes("小計") || cleanLine.includes("應付")) return;
 
-            // 1. 偵測人名：找括號內或行首，排除口味名
-            const personMatch = cleanLine.match(/^([^\\s\\+x:\\d]+)/);
+            const personMatch = cleanLine.match(/^([^\\s\\+x:\\d]{2,})/);
             if(personMatch) {
                 const potentialName = personMatch[1].trim();
-                if(!allItems.some(item => potentialName.includes(item)) && potentialName.length >= 2) {
+                if(!allItems.some(item => potentialName.includes(item))) {
                     currentPerson = potentialName;
                 }
             }
 
-            // 2. 偵測口味
             allItems.forEach(item => {
                 if (cleanLine.includes(item)) {
                     let qty = 0;
-                    // 精準規則：抓取 x 或 + 後面的數字，若無則抓該行最後一個數字 (並排除掉帶 $ 的)
                     const xMatch = cleanLine.match(new RegExp(`${item}.*?[xX\\+\\*\\s](\\d+)`));
                     if(xMatch) {
                         qty = parseInt(xMatch[1]);
                     } else {
-                        // 排除 $單價 後的最後數字
                         const parts = cleanLine.split(/\s+/);
                         const lastPart = parts[parts.length - 1];
                         if(/^\d+$/.test(lastPart)) qty = parseInt(lastPart);
@@ -189,7 +184,7 @@
             document.getElementById('report-list').innerHTML = reportH;
             document.getElementById('report-modal').style.display = 'flex';
         } else {
-            alert("❌ 解析失敗！請確保貼上的文字包含「人名」與「口味數量」。");
+            alert("❌ 解析失敗！無法辨識品項或數量。");
         }
     }
 
@@ -210,15 +205,15 @@
     }
 
     function getFeeInfo(totalQty) {
-        if (totalQty === 0) return { fee: 0 };
-        if (totalQty >= 520) return { fee: 0 };
-        if (totalQty <= 20) return { fee: 240 };
-        if (totalQty <= 50) return { fee: 260 };
-        if (totalQty <= 60) return { fee: 290 };
-        if (totalQty <= 70) return { fee: 320 };
-        if (totalQty <= 90) return { fee: 350 };
-        if (totalQty <= 129) return { fee: 380 };
-        return { fee: 130 };
+        if (totalQty === 0) return { fee: 0, note: "" };
+        if (totalQty >= 520) return { fee: 0, note: "(滿520片免運)" };
+        if (totalQty <= 20) return { fee: 240, note: "(1-20片)" };
+        if (totalQty <= 50) return { fee: 260, note: "(21-50片)" };
+        if (totalQty <= 60) return { fee: 290, note: "(51-60片)" };
+        if (totalQty <= 70) return { fee: 320, note: "(61-70片)" };
+        if (totalQty <= 90) return { fee: 350, note: "(71-90片)" };
+        if (totalQty <= 129) return { fee: 380, note: "(91-129片)" };
+        return { fee: 130, note: "(分箱補貼)" };
     }
 
     function showM(s){ document.getElementById('modal').style.display=s?'flex':'none'; }
@@ -247,7 +242,7 @@
             let uQ = u.orders.reduce((s,o)=>s+o.q, 0); totalQty += uQ;
             totalMoney += u.orders.reduce((s,o)=>s+(o.p*o.q), 0);
             th+=`<div class="user-tab ${i===cur?'active':''}" onclick="cur=${i};render()">
-                <span>${u.name}</span>${uQ>0?`<span class="cart-count">${uQ}</span>`:''}<span class="del-u" onclick="event.stopPropagation();if(confirm('刪除人員？')){users.splice(${i},1);if(cur==${i})cur=-1;render()}">×</span>
+                <span>${u.name}</span>${uQ>0?`<span class="cart-count">${uQ}</span>`:''}<span class="del-u" onclick="event.stopPropagation();if(confirm('刪除？')){users.splice(${i},1);if(cur==${i})cur=-1;render()}">×</span>
             </div>`;
         });
         document.getElementById('tabs').innerHTML=th;
@@ -256,12 +251,12 @@
             document.getElementById('cur-u-name').innerText=`👤 ${users[cur].name}`;
             let oh=''; 
             users[cur].orders.forEach((o,oi)=>oh+=`<div class="order-item"><div><b>${o.n}</b> ($${o.p})<br><small>${o.q}片 = $${o.p*o.q}</small></div><button onclick="users[${cur}].orders.splice(${oi},1);render()" style="color:var(--red);border:1px solid;padding:5px;border-radius:5px;background:none;">刪除</button></div>`);
-            document.getElementById('items-box').innerHTML=oh || '<p style="text-align:center;color:#aaa">點擊下方口味加入清單</p>';
+            document.getElementById('items-box').innerHTML=oh || '<p style="text-align:center;color:#aaa">點擊下方口味加入</p>';
         } else { document.getElementById('welcome').style.display='block'; document.getElementById('order-ui').style.display='none'; }
         let feeInfo = getFeeInfo(totalQty);
         document.getElementById('t-qty').innerText = totalQty;
-        document.getElementById('total').innerText = totalMoney + (feeInfo.fee || 0);
-        localStorage.setItem('thickToastV59', JSON.stringify(users));
+        document.getElementById('total').innerText = totalMoney + feeInfo.fee;
+        localStorage.setItem('thickToastV60', JSON.stringify(users));
     }
 
     function goLine(){
@@ -282,12 +277,12 @@
         Object.keys(summary).sort().forEach(k => {
             m += `▪️ ${k}：${summary[k]} 片 ${(summary[k]%5===0)?'':'⚠️'}\n`;
         });
-        m += `==================\n🏠 總計：${totalQty} 片\n🚚 運費：$${feeInfo.fee || 0}\n💰 總應付：$${totalMoney + (feeInfo.fee || 0)} 元`;
+        m += `==================\n🏠 總計：${totalQty} 片\n🚚 運費：$${feeInfo.fee} ${feeInfo.note}\n💰 總應付：$${totalMoney + feeInfo.fee} 元`;
         window.location.href="https://line.me/R/msg/text/?"+encodeURIComponent(m);
     }
 
     window.onload = function() {
-        const saved = localStorage.getItem('thickToastV59');
+        const saved = localStorage.getItem('thickToastV60');
         if (saved) users = JSON.parse(saved);
         initMenu(); render();
     };
