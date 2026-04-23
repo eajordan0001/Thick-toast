@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🍞 團購助手 V5.7 格式全相容版</title>
+    <title>🍞 厚片吐司團購助手 V5.8 邏輯修正版</title>
     <style>
         :root { --main: #e67e22; --dark: #2c3e50; --line: #00B900; --red: #e74c3c; --bg: #fdf5e6; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, "Noto Sans TC", sans-serif; }
         body { background: var(--bg); margin: 0; padding-bottom: 300px; color: #333; }
         .header { background: #ba8b5e; color: #fff; text-align: center; padding: 12px; font-weight: bold; position: sticky; top: 0; z-index: 100; border-bottom: 3px solid #8e5e31; }
-        .price-info { background: #fffbe6; color: #5d4037; text-align: center; padding: 10px; font-size: 12px; border-bottom: 1px solid #ddd; line-height: 1.5; }
+        .price-info { background: #fffbe6; color: #d35400; text-align: center; padding: 10px; font-size: 13px; border-bottom: 1px solid #ddd; line-height: 1.6; font-weight: bold; }
         .user-nav { background: #3e2723; display: flex; overflow-x: auto; padding: 12px; gap: 10px; align-items: center; min-height: 65px; border-bottom: 2px solid #000; scrollbar-width: none; }
         .user-nav::-webkit-scrollbar { display: none; }
         .btn-add { background: #fff; color: #3e2723; padding: 10px 18px; border-radius: 25px; font-weight: bold; font-size: 14px; border: none; flex-shrink: 0; cursor: pointer; }
@@ -44,16 +44,19 @@
 </head>
 <body>
 
-<div class="header">厚片吐司團購助手</div>
-<div class="price-info">⚠️ 每種口味 <b> 5的倍數 </b> 下單！<br>🚚 滿 520 片免運</div>
+<div class="header">厚片吐司團購助手 V5.8</div>
+<div class="price-info">
+    ⚠️ 每種口味請以 5 的倍數下單，不可以零散訂購喔！<br>
+    🚚 滿 520 片免運費
+</div>
 
 <div class="user-nav" id="tabs"></div>
 
 <div class="container">
     <div id="welcome" style="text-align:center; padding: 40px 20px;">
-        <div style="font-size: 50px;">🍞</div>
+        <div style="font-size: 50px;">🥪</div>
         <h3>貼上清單或對話內容</h3>
-        <p style="font-size:13px; color:#888;">支援手動點餐與多行文字辨識</p>
+        <p style="font-size:13px; color:#888;">系統將自動辨識姓名與數量</p>
     </div>
 
     <div id="order-ui" style="display:none">
@@ -72,7 +75,7 @@
         <div>總計：<b id="t-qty" style="color:var(--main)">0</b> 片</div>
         <div style="font-size: 12px; color: #888;">應付：$<span id="total">0</span></div>
     </div>
-    <textarea class="coop-textarea" id="coop-input" placeholder="可貼上對話：王小明 巧克力+5, 藍莓+10..."></textarea>
+    <textarea class="coop-textarea" id="coop-input" placeholder="可貼上對話：王小明 巧克力+5..."></textarea>
     <div class="coop-btns">
         <button class="btn-organize" onclick="organizeText()">整理清單</button>
         <button class="btn-final-line" onclick="goLine()">匯出最終 LINE</button>
@@ -82,6 +85,7 @@
 <div class="modal-bg" id="report-modal">
     <div class="modal-content">
         <h3>🔍 整理預覽</h3>
+        <p style="font-size:12px; color:var(--red);">請核對數量是否正確（已排除單價干擾）</p>
         <div class="log-list" id="report-list"></div>
         <div style="display:flex;gap:10px;">
             <button onclick="closeReport(false)" style="flex:1;padding:12px;border:none;border-radius:10px;background:#eee;">取消</button>
@@ -145,34 +149,45 @@
 
         lines.forEach(line => {
             const cleanLine = line.trim();
-            if(!cleanLine) return;
+            if(!cleanLine || cleanLine.includes("總計") || cleanLine.includes("運費") || cleanLine.includes("應付")) return;
 
-            // 1. 偵測人名（排除掉统计關鍵字）
-            const personMatch = cleanLine.match(/👤?\s*\[?([^\]\s:\$]+)\]?\s*(-|:|$)/);
-            if(personMatch && !cleanLine.includes("統計") && !cleanLine.includes("小計") && !cleanLine.includes("報表")) {
+            // 1. 偵測人名
+            const personMatch = cleanLine.match(/👤?\s*\[?([^\]\s:\$]{2,})\]?\s*(-|:|$| )/);
+            if(personMatch && !allItems.some(item => cleanLine.includes(item))) {
                 currentPerson = personMatch[1].replace(/[👤\[\]]/g, '').trim();
             }
 
             // 2. 偵測品項與數量
             allItems.forEach(item => {
-                // 支援：▫️ 品項 ($價錢) x 數量 或 品項+數量 等
-                const reg = new RegExp(`${item}.*?(\\d+)`, 'i');
-                const match = cleanLine.match(reg);
-                if(match && currentPerson) {
-                    let qty = parseInt(match[1]);
-                    let price = 0;
-                    menuData.forEach(g => { if(g.items.includes(item)) price = g.price; });
-                    tempOrders.push({ userName: currentPerson, item, qty, price });
-                }
-                // 另一種解析：人名在同一行的情況 (如: 王小明 巧克力+5)
-                const combinedReg = new RegExp(`([^\\s+x,：:]+).+?${item}.*?(\\d+)`, 'i');
-                const combMatch = cleanLine.match(combinedReg);
-                if(combMatch && !currentPerson) {
-                    let name = combMatch[1].trim();
-                    let qty = parseInt(combMatch[2]);
-                    let price = 0;
-                    menuData.forEach(g => { if(g.items.includes(item)) price = g.price; });
-                    tempOrders.push({ userName: name, item, qty, price });
+                if (cleanLine.includes(item)) {
+                    let qty = 0;
+                    // 優先匹配 x數字 或 +數字 或 *數字 (避開 $數字)
+                    const qtyMatch = cleanLine.match(new RegExp(`${item}.*?[x\\+\\*]\\s*(\\d+)`, 'i')) || 
+                                     cleanLine.match(new RegExp(`${item}.*?(\\d+)\\s*片`)) ||
+                                     cleanLine.match(new RegExp(`${item}.*?(?!\\$)\\s+(\\d+)(?!\\d)`));
+                    
+                    if(qtyMatch) {
+                        qty = parseInt(qtyMatch[1]);
+                    } else {
+                        // 最後手段：抓取行末數字
+                        const lastNum = cleanLine.match(/(\d+)$/);
+                        if(lastNum) qty = parseInt(lastNum[1]);
+                    }
+
+                    if(qty > 0) {
+                        let nameToUse = currentPerson;
+                        // 如果該行自帶人名 (例如: 王小明 巧克力 5)
+                        const inlineName = cleanLine.match(/^([^\\s]+)\s+/);
+                        if(inlineName && !allItems.some(it => inlineName[1].includes(it))) {
+                            nameToUse = inlineName[1];
+                        }
+
+                        if(nameToUse) {
+                            let price = 0;
+                            menuData.forEach(g => { if(g.items.includes(item)) price = g.price; });
+                            tempOrders.push({ userName: nameToUse, item, qty, price });
+                        }
+                    }
                 }
             });
         });
@@ -182,7 +197,7 @@
             document.getElementById('report-list').innerHTML = reportH;
             document.getElementById('report-modal').style.display = 'flex';
         } else {
-            alert("❌ 解析失敗！請確保內容包含「姓名」與「口味名稱」。");
+            alert("❌ 解析失敗！無法辨識品項或數量。");
         }
     }
 
@@ -223,7 +238,7 @@
     function adj(btn,d){ event.stopPropagation(); let input=btn.parentNode.querySelector('.qty-input'); let v=(parseInt(input.value) || 0)+d; if(v<1) v=1; input.value=v; }
     function quickAdd(btn) {
         event.stopPropagation();
-        if(cur < 0) return alert("請先點選上方的人員標籤");
+        if(cur < 0) return alert("請先選擇上方人員");
         let row = btn.closest('.i-opt');
         let q = parseInt(row.querySelector('.qty-input').value) || 1;
         let name = row.dataset.name;
@@ -254,12 +269,12 @@
         let feeInfo = getFeeInfo(totalQty);
         document.getElementById('t-qty').innerText = totalQty;
         document.getElementById('total').innerText = totalMoney + feeInfo.fee;
-        localStorage.setItem('muffinV57', JSON.stringify(users));
+        localStorage.setItem('thickToastDataV58', JSON.stringify(users));
     }
 
     function goLine(){
-        if(!users.some(u=>u.orders.length)) return alert("清單是空的");
-        let m="【🍞 吐司彙整報表】\n\n", totalQty=0, totalMoney=0, summary={};
+        if(!users.some(u=>u.orders.length)) return alert("目前清單是空的");
+        let m="【🍞 厚片吐司團購彙整報表】\n\n", totalQty=0, totalMoney=0, summary={};
         users.forEach(u=>{
             if(u.orders.length){
                 let uQ = u.orders.reduce((s,o)=>s+o.q,0);
@@ -271,7 +286,7 @@
             }
         });
         let feeInfo = getFeeInfo(totalQty);
-        m += `==================\n📦 【出貨統計】\n`;
+        m += `==================\n📦 【出貨統計總表】\n`;
         Object.keys(summary).sort().forEach(k => {
             m += `▪️ ${k}：${summary[k]} 片 ${(summary[k]%5===0)?'':'⚠️'}\n`;
         });
@@ -280,7 +295,7 @@
     }
 
     window.onload = function() {
-        const saved = localStorage.getItem('muffinV57');
+        const saved = localStorage.getItem('thickToastDataV58');
         if (saved) users = JSON.parse(saved);
         initMenu(); render();
     };
