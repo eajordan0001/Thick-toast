@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🍞 厚片吐司團購助手</title>
+    <title>厚片吐司團購助手</title>
     <style>
         :root { --main: #e67e22; --dark: #2c3e50; --line: #00B900; --red: #e74c3c; --bg: #fdf5e6; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, "Noto Sans TC", sans-serif; }
@@ -55,8 +55,8 @@
 <div class="container">
     <div id="welcome" style="text-align:center; padding: 40px 20px;">
         <div style="font-size: 50px;">🍞</div>
-        <h3>貼上清單或對話內容</h3>
-        <p style="font-size:13px; color:#888;">系統會自動計算各區間運費</p>
+        <h3>貼上清單或開始點餐</h3>
+        <p style="font-size:13px; color:#888;">系統將根據片數自動套用正確運費級距</p>
     </div>
 
     <div id="order-ui" style="display:none">
@@ -75,7 +75,7 @@
         <div>總計：<b id="t-qty" style="color:var(--main)">0</b> 片</div>
         <div style="font-size: 12px; color: #888;">應付：$<span id="total">0</span></div>
     </div>
-    <textarea class="coop-textarea" id="coop-input" placeholder="可貼上清單文字進行二次整理..."></textarea>
+    <textarea class="coop-textarea" id="coop-input" placeholder="可貼上群組訊息進行自動整理..."></textarea>
     <div class="coop-btns">
         <button class="btn-organize" onclick="organizeText()">整理清單</button>
         <button class="btn-final-line" onclick="goLine()">匯出最終 LINE</button>
@@ -146,7 +146,11 @@
         if (totalQty <= 70) return { fee: 320, note: "($320，61-70片)" };
         if (totalQty <= 90) return { fee: 350, note: "($350，71-90片)" };
         if (totalQty <= 129) return { fee: 380, note: "($380，91-129片)" };
-        return { fee: 130, note: "($130，分箱運費補貼)" };
+        
+        // 130片以上邏輯：每滿130片收一個箱子的運費，或者按倍數補貼
+        let boxCount = Math.floor(totalQty / 130);
+        let extraFee = boxCount * 130;
+        return { fee: extraFee, note: `($${extraFee}，分箱運費補貼)` };
     }
 
     function organizeText() {
@@ -176,7 +180,6 @@
                         const lastPart = parts[parts.length - 1];
                         if(/^\d+$/.test(lastPart)) qty = parseInt(lastPart);
                     }
-
                     if(qty > 0 && currentPerson) {
                         let price = 0;
                         menuData.forEach(g => { if(g.items.includes(item)) price = g.price; });
@@ -190,7 +193,7 @@
             let reportH = tempOrders.map(o => `<b>${o.userName}</b>：${o.item} x ${o.qty}`).join('<br>');
             document.getElementById('report-list').innerHTML = reportH;
             document.getElementById('report-modal').style.display = 'flex';
-        } else { alert("❌ 解析失敗！請檢查格式。"); }
+        } else { alert("❌ 無法辨識內容。"); }
     }
 
     function closeReport(confirm) {
@@ -240,17 +243,17 @@
             document.getElementById('cur-u-name').innerText=`👤 ${users[cur].name}`;
             let oh=''; 
             users[cur].orders.forEach((o,oi)=>oh+=`<div class="order-item"><div><b>${o.n}</b> ($${o.p})<br><small>${o.q}片 = $${o.p*o.q}</small></div><button onclick="users[${cur}].orders.splice(${oi},1);render()" style="color:var(--red);border:1px solid;padding:5px;border-radius:5px;background:none;">刪除</button></div>`);
-            document.getElementById('items-box').innerHTML=oh || '<p style="text-align:center;color:#aaa">點擊下方口味加入</p>';
+            document.getElementById('items-box').innerHTML=oh || '<p style="text-align:center;color:#aaa">請點選下方口味加入</p>';
         } else { document.getElementById('welcome').style.display='block'; document.getElementById('order-ui').style.display='none'; }
         let f = getFeeInfo(totalQty);
         document.getElementById('t-qty').innerText = totalQty;
         document.getElementById('total').innerText = totalMoney + f.fee;
-        localStorage.setItem('thickToastV61', JSON.stringify(users));
+        localStorage.setItem('thickToastFinal', JSON.stringify(users));
     }
 
     function goLine(){
         if(!users.some(u=>u.orders.length)) return alert("清單是空的");
-        let m="【🍞 厚片吐司團購彙整報表】\n\n", totalQty=0, totalMoney=0, summary={};
+        let m="【🍞 厚片吐司團購彙整報表】\n\n", totalQty=0, totalMoney=0, summary={};ㄑ
         users.forEach(u=>{
             if(u.orders.length){
                 let uQ = u.orders.reduce((s,o)=>s+o.q,0), uM = u.orders.reduce((s,o)=>s+(o.p*o.q),0);
@@ -268,7 +271,7 @@
     }
 
     window.onload = function() {
-        const saved = localStorage.getItem('thickToastV61');
+        const saved = localStorage.getItem('thickToastFinal');
         if (saved) users = JSON.parse(saved);
         initMenu(); render();
     };
