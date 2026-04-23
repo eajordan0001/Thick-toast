@@ -55,7 +55,7 @@
 <body>
 
 <div class="header">厚片吐司 團購助手</div>
-<div class="price-info">⚠️ 每種口味請以 <b>5的倍數</b> 下單，不可以零散訂購！<br>🚚 滿 520 片以上免運費</div>
+<div class="price-info">⚠️ 每種口味請以 <b>5的倍數</b> 下單，不可以零散訂購！🚚 滿 520 片以上免運費</div>
 
 <div class="user-nav" id="tabs"></div>
 
@@ -142,9 +142,9 @@
         if (totalQty <= 129) return { fee: 380, note: "(91-129片)" };
         
         // 箱數邏輯
-        if (totalQty >= 130 && totalQty < 260) return { fee: 130, note: "(130-259片/一箱加成)" };
-        if (totalQty >= 260 && totalQty < 390) return { fee: 130, note: "(260-389片/二箱加成)" };
-        if (totalQty >= 390 && totalQty < 520) return { fee: 130, note: "(390-519片/三箱加成)" };
+        if (totalQty >= 130 && totalQty < 260) return { fee: 130, note: "(130-259片/一箱優惠)" };
+        if (totalQty >= 260 && totalQty < 390) return { fee: 130, note: "(260-389片/二箱優惠)" };
+        if (totalQty >= 390 && totalQty < 520) return { fee: 130, note: "(390-519片/三箱優惠)" };
         
         return { fee: 0, note: "" };
     }
@@ -211,7 +211,7 @@
 
     function goLine(){
         if(!users.some(u=>u.orders.length)) return alert("目前無訂單");
-        let m="【🍞 團購報表】\n\n", totalQty=0, totalMoney=0, summary={};
+        let m="【🍞 厚片吐司 團購報表】\n\n", totalQty=0, totalMoney=0, summary={};
         users.forEach(u=>{
             if(u.orders.length){
                 let uQ = u.orders.reduce((s,o)=>s+o.q,0);
