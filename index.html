@@ -56,7 +56,7 @@
     <div id="welcome" style="text-align:center; padding: 40px 20px;">
         <div style="font-size: 50px;">🍞</div>
         <h3>貼上清單或對話內容</h3>
-        <p style="font-size:13px; color:#888;">系統會自動根據片數套用正確運費區間</p>
+        <p style="font-size:13px; color:#888;">系統將根據片數自動計算正確的累積運費</p>
     </div>
 
     <div id="order-ui" style="display:none">
@@ -75,7 +75,7 @@
         <div>總計：<b id="t-qty" style="color:var(--main)">0</b> 片</div>
         <div style="font-size: 12px; color: #888;">應付：$<span id="total">0</span></div>
     </div>
-    <textarea class="coop-textarea" id="coop-input" placeholder="可在此貼上對話，點擊整理清單..."></textarea>
+    <textarea class="coop-textarea" id="coop-input" placeholder="可貼上對話內容進行整理..."></textarea>
     <div class="coop-btns">
         <button class="btn-organize" onclick="organizeText()">整理清單</button>
         <button class="btn-final-line" onclick="goLine()">匯出最終 LINE</button>
@@ -107,7 +107,7 @@
 <script>
     let users=[], cur=-1;
     let tempOrders = [];
-    const STORAGE_KEY = 'thickToastApp';
+    const STORAGE_KEY = 'thickToastSystem';
     const menuData = [
         { price: 18, items: ["野生藍莓", "甜心草莓", "巧克力", "爆漿奶油", "芝麻花生", "奶酥", "曼特寧咖啡"] },
         { price: 21, items: ["甲仙芋頭", "萬丹紅豆", "太妃糖", "花生大王"] },
@@ -122,15 +122,43 @@
     function getFeeInfo(totalQty) {
         if (totalQty === 0) return { fee: 0, note: "" };
         if (totalQty >= 520) return { fee: 0, note: "($0，滿520片免運)" };
-        if (totalQty <= 20) return { fee: 240, note: "($240，1-20片)" };
-        if (totalQty <= 50) return { fee: 260, note: "($260，21-50片)" };
-        if (totalQty <= 60) return { fee: 290, note: "($290，51-60片)" };
-        if (totalQty <= 70) return { fee: 320, note: "($320，61-70片)" };
-        if (totalQty <= 90) return { fee: 350, note: "($350，71-90片)" };
-        if (totalQty <= 129) return { fee: 380, note: "($380，91-129片)" };
+        
+        // 級距判定函數
+        const getBaseFee = (q) => {
+            if (q === 0) return 0;
+            if (q <= 20) return 240;
+            if (q <= 50) return 260;
+            if (q <= 60) return 290;
+            if (q <= 70) return 320;
+            if (q <= 90) return 350;
+            if (q <= 129) return 380;
+            return 0;
+        };
+
+        const getBaseNote = (q) => {
+            if (q === 0) return "";
+            if (q <= 20) return "1-20片";
+            if (q <= 50) return "21-50片";
+            if (q <= 60) return "51-60片";
+            if (q <= 70) return "61-70片";
+            if (q <= 90) return "71-90片";
+            if (q <= 129) return "91-129片";
+            return "";
+        };
+
+        // 核心邏輯：130片為一整箱
         let boxCount = Math.floor(totalQty / 130);
-        let extraFee = boxCount * 130;
-        return { fee: extraFee, note: `($${extraFee}，分箱運費補貼)` };
+        let remainder = totalQty % 130;
+        
+        let totalFee = (boxCount * 130) + getBaseFee(remainder);
+        let noteParts = [];
+        if (boxCount > 0) noteParts.push(`${boxCount * 130}片`);
+        if (remainder > 0) noteParts.push(getBaseNote(remainder));
+        
+        return { 
+            fee: totalFee, 
+            note: `($${totalFee}，${noteParts.join('+')})` 
+        };
     }
 
     function initMenu() {
@@ -178,7 +206,7 @@
         if(tempOrders.length > 0) {
             document.getElementById('report-list').innerHTML = tempOrders.map(o => `<b>${o.userName}</b>：${o.item} x ${o.qty}`).join('<br>');
             document.getElementById('report-modal').style.display = 'flex';
-        } else alert("無法辨識品項");
+        } else alert("無法解析，請檢查格式");
     }
 
     function closeReport(confirm) {
@@ -203,7 +231,7 @@
     function setI(el){ document.querySelectorAll('.i-opt').forEach(b=>b.classList.remove('active')); el.classList.add('active'); }
     function adj(btn,d){ event.stopPropagation(); let input=btn.parentNode.querySelector('.qty-input'); let v=(parseInt(input.value) || 0)+d; if(v<1) v=1; input.value=v; }
     function quickAdd(btn) {
-        event.stopPropagation(); if(cur < 0) return alert("選擇人員標籤");
+        event.stopPropagation(); if(cur < 0) return alert("請先選擇人員");
         let row = btn.closest('.i-opt'), q = parseInt(row.querySelector('.qty-input').value) || 1;
         let n = row.dataset.name, p = parseInt(row.dataset.price);
         let ex = users[cur].orders.find(o => o.n === n);
