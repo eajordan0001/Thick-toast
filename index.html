@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🍞 馬芬湯種厚片吐司 團購助手 V5.0</title>
+    <style>
+        :root { --main: #e67e22; --dark: #2c3e50; --line: #00B900; --red: #e74c3c; --bg: #fdf5e6; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, "Noto Sans TC", sans-serif; }
+        body { background: var(--bg); margin: 0; padding-bottom: 160px; color: #333; }
+        .header { background: #ba8b5e; color: #fff; text-align: center; padding: 12px; font-weight: bold; position: sticky; top: 0; z-index: 100; border-bottom: 3px solid #8e5e31; }
+        .price-info { background: #fffbe6; color: #5d4037; text-align: center; padding: 10px; font-size: 13px; border-bottom: 1px solid #ddd; line-height: 1.5; }
+        .price-info b { color: var(--red); }
+        
+        .user-nav { 
+            background: #3e2723; display: flex; overflow-x: auto; padding: 12px; gap: 10px; 
+            align-items: center; min-height: 65px; border-bottom: 2px solid #000;
+            scrollbar-width: none; 
+        }
+        .user-nav::-webkit-scrollbar { display: none; }
+
+        .btn-add { background: #fff; color: #3e2723; padding: 10px 18px; border-radius: 25px; font-weight: bold; font-size: 14px; border: none; flex-shrink: 0; cursor: pointer; }
+        .user-tab { background: #5d4037; color: #d7ccc8; padding: 10px 18px; border-radius: 25px; white-space: nowrap; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .user-tab.active { background: #fff; color: #3e2723; font-weight: bold; }
+        .cart-count { background: var(--main); color: #fff; border-radius: 50%; font-size: 11px; padding: 1px 6px; margin-left: -5px; }
+        .del-u { color: var(--red); font-weight: bold; font-size: 18px; padding-left: 5px; }
+
+        .container { padding: 15px; max-width: 500px; margin: auto; }
+        .card { background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid #d7ccc8; }
+        .card-body { padding: 20px; }
+        .section-h { font-weight: bold; margin: 15px 0 8px; display: block; font-size: 15px; color: #5d4037; border-left: 5px solid #ba8b5e; padding-left: 10px; background: #f9f4f0; padding-top: 5px; padding-bottom: 5px; }
+        
+        .opt-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #eee; border-radius: 12px; background: #fafafa; cursor: pointer; margin-bottom: 6px; }
+        .opt-row.active { border-color: #ba8b5e; background: #fff9f0; }
+        .opt-name { flex: 1; font-size: 14px; font-weight: bold; }
+        .opt-price { color: #8d6e63; font-size: 12px; margin-right: 8px; }
+        
+        .qty-controls { display: flex; align-items: center; gap: 4px; visibility: hidden; }
+        .opt-row.active .qty-controls { visibility: visible; }
+        .qty-btn { background: #d7ccc8; color: #3e2723; border: none; border-radius: 5px; font-weight: bold; width: 32px; height: 32px; cursor: pointer; }
+        .qty-input { width: 45px; height: 32px; text-align: center; border: 1px solid #ccc; border-radius: 5px; font-weight: bold; }
+        .btn-quick-add { background: var(--main); color: white; border: none; border-radius: 5px; width: 35px; height: 32px; font-weight: bold; cursor: pointer; }
+
+        .footer { position: fixed; bottom: 0; width: 100%; background: #fff; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 100; border-top: 2px solid #ba8b5e; }
+        .price-num { font-size: 28px; font-weight: 900; color: #d35400; }
+        .fee-tag { font-size: 12px; color: #7f8c8d; }
+        .btn-line { background: var(--line); color: #fff; padding: 12px 20px; border-radius: 12px; font-weight: bold; border:none; cursor:pointer; }
+        
+        .modal-bg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: #fff; width: 85%; max-width: 350px; padding: 25px; border-radius: 20px; text-align: center; }
+        .input-box { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; margin-top: 10px; }
+        .order-item { background: #fff; margin-top: 8px; padding: 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="header">馬芬湯種厚片吐司 團購助手</div>
+<div class="price-info">⚠️ 每種口味請以 <b>5的倍數</b> 下單，不可以零散訂購！<br>🚚 滿 520 片以上免運費</div>
+
+<div class="user-nav" id="tabs"></div>
+
+<div class="container">
+    <div id="welcome" style="text-align:center; padding: 40px 20px;">
+        <div style="font-size: 50px;">🍞</div>
+        <h3>請點擊上方「新增」或選擇人員</h3>
+    </div>
+
+    <div id="order-ui" style="display:none">
+        <div class="card">
+            <div class="card-body">
+                <h2 id="cur-u-name" style="margin:0; color:#3e2723;"></h2>
+                <div id="menu-container"></div>
+            </div>
+        </div>
+        <div id="items-box"></div>
+    </div>
+</div>
+
+<div class="footer">
+    <div>
+        <span id="t-qty" style="color:var(--main);font-weight:bold;">0</span> 片吐司<br>
+        <span class="fee-tag">含運費：$<span id="fee-amt">0</span></span>
+        <div class="price-num" id="total">$0</div>
+    </div>
+    <button class="btn-line" onclick="goLine()">匯出 LINE</button>
+</div>
+
+<div class="modal-bg" id="modal">
+    <div class="modal-content">
+        <h3>新增開單姓名</h3>
+        <input type="text" id="name-in" class="input-box" placeholder="例如：主任">
+        <div style="display:flex;gap:10px;margin-top:20px;">
+            <button onclick="showM(false)" style="flex:1;padding:12px;border:none;border-radius:10px;">取消</button>
+            <button onclick="addU()" style="flex:1;padding:12px;border:none;border-radius:10px;background:var(--main);color:#fff;">確定</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let users=[], cur=-1;
+    const menuData = [
+        { price: 18, items: ["野生藍莓", "甜心草莓", "巧克力", "爆漿奶油", "芝麻花生", "奶酥", "曼特寧咖啡"] },
+        { price: 21, items: ["甲仙芋頭", "萬丹紅豆", "太妃糖", "花生大王"] },
+        { price: 23, items: ["濃郁蒜香", "培根蔥花", "起士肉鬆", "蔥花熱狗", "肉鬆火腿", "高鈣起士", "起士火腿", "茄汁披薩", "新鮮蔥花", "玉米焗烤", "蔥花肉鬆", "養生南瓜", "摩卡可可"] },
+        { price: 28, items: ["鮪魚玉米", "玉米蛋沙拉", "鮪魚洋蔥", "乳酪馬鈴薯", "法式青醬"] },
+        { price: 31, items: ["芋頭肉鬆", "咖啡Q朵"] },
+        { price: 38, items: ["經典乳酪", "奶黃先生", "紅豆軟軟"] },
+        { price: 43, items: ["濃厚乳酪", "日式明太子", "奧利奧超人"] },
+        { price: 49, items: ["抹茶叔叔", "提拉米蘇"] }
+    ];
+
+    function initMenu() {
+        let h = '';
+        menuData.forEach(group => {
+            h += `<span class="section-h">${group.price} 元區</span>`;
+            group.items.forEach(name => {
+                h += `<div class="opt-row i-opt" data-price="${group.price}" data-name="${name}" onclick="setI(this)">
+                    <span class="opt-name">${name}</span>
+                    <span class="opt-price">$${group.price}</span>
+                    <div class="qty-controls">
+                        <button class="qty-btn" onclick="adj(this,-5)">-5</button>
+                        <input type="number" class="qty-input" value="5" readonly>
+                        <button class="qty-btn" onclick="adj(this,5)">+5</button>
+                        <button class="btn-quick-add" onclick="quickAdd(this)">✓</button>
+                    </div>
+                </div>`;
+            });
+        });
+        document.getElementById('menu-container').innerHTML = h;
+    }
+
+    // 運費計算邏輯 (依照附圖表格)
+    function calcFee(totalQty) {
+        if (totalQty === 0) return 0;
+        if (totalQty >= 520) return 0; // 520片以上免運費
+        
+        // 階梯運費
+        if (totalQty <= 20) return 240;
+        if (totalQty <= 50) return 260;
+        if (totalQty <= 60) return 290;
+        if (totalQty <= 70) return 320;
+        if (totalQty <= 90) return 350;
+        if (totalQty <= 129) return 380;
+        
+        // 箱數加成 (130片為一箱基準)
+        if (totalQty >= 130 && totalQty < 260) return 130;
+        if (totalQty >= 260 && totalQty < 390) return 130;
+        if (totalQty >= 390 && totalQty < 520) return 130;
+        
+        return 0;
+    }
+
+    function showM(s){ document.getElementById('modal').style.display=s?'flex':'none'; }
+    function addU(){ 
+        let n=document.getElementById('name-in').value.trim(); 
+        if(n){ users.push({name:n,orders:[]}); cur=users.length-1; showM(false); document.getElementById('name-in').value=''; render(); }
+    }
+
+    function setI(el){ document.querySelectorAll('.i-opt').forEach(b=>b.classList.remove('active')); el.classList.add('active'); }
+    function adj(btn,d){ 
+        event.stopPropagation(); 
+        let input=btn.parentNode.querySelector('.qty-input'); 
+        let v=(parseInt(input.value) || 0)+d; 
+        if(v<5) v=5; // 最低5片
+        input.value=v; 
+    }
+
+    function quickAdd(btn) {
+        event.stopPropagation();
+        if(cur < 0) return;
+        let row = btn.closest('.i-opt');
+        let q = parseInt(row.querySelector('.qty-input').value) || 5;
+        let name = row.dataset.name;
+        let price = parseInt(row.dataset.price);
+
+        let existing = users[cur].orders.find(o => o.n === name);
+        if (existing) { existing.q += q; } 
+        else { users[cur].orders.push({ n:name, p:price, q:q }); }
+
+        row.querySelector('.qty-input').value = 5;
+        render();
+    }
+
+    function render(){
+        let th='<button class="btn-add" onclick="showM(true)">+ 新增</button>', totalQty=0, totalMoney=0;
+        
+        users.forEach((u,i)=>{ 
+            let uQ = u.orders.reduce((s,o)=>s+o.q, 0);
+            totalQty += uQ;
+            totalMoney += u.orders.reduce((s,o)=>s+(o.p*o.q), 0);
+            th+=`<div class="user-tab ${i===cur?'active':''}" onclick="cur=${i};render()">
+                <span>${u.name}</span>${uQ>0?`<span class="cart-count">${uQ}</span>`:''}<span class="del-u" onclick="event.stopPropagation();if(confirm('刪除？')){users.splice(${i},1);render()}">×</span>
+            </div>`;
+        });
+        document.getElementById('tabs').innerHTML=th;
+
+        if(cur>=0 && users[cur]){
+            document.getElementById('welcome').style.display='none'; 
+            document.getElementById('order-ui').style.display='block';
+            document.getElementById('cur-u-name').innerText=`👤 ${users[cur].name}`;
+            let oh=''; 
+            users[cur].orders.forEach((o,oi)=>oh+=`<div class="order-item"><div><b>${o.n}</b> ($${o.p})<br><small>${o.q}片 = $${o.p*o.q}</small></div><button onclick="users[${cur}].orders.splice(${oi},1);render()" style="color:var(--red);border:1px solid;padding:5px;border-radius:5px;background:none;">刪除</button></div>`);
+            document.getElementById('items-box').innerHTML=oh || '<p style="text-align:center;color:#aaa">點選下方口味新增</p>';
+        }
+
+        let fee = calcFee(totalQty);
+        document.getElementById('t-qty').innerText = totalQty;
+        document.getElementById('fee-amt').innerText = fee;
+        document.getElementById('total').innerText = `$${totalMoney + fee}`;
+        localStorage.setItem('muffinOrderData', JSON.stringify(users));
+    }
+
+    function goLine(){
+        if(!users.some(u=>u.orders.length)) return alert("目前無訂單");
+        let m="【🍞 馬芬吐司團購報表】\n\n", totalQty=0, totalMoney=0, summary={};
+        users.forEach(u=>{
+            if(u.orders.length){
+                let uQ = u.orders.reduce((s,o)=>s+o.q,0);
+                let uM = u.orders.reduce((s,o)=>s+(o.p*o.q),0);
+                totalQty += uQ; totalMoney += uM;
+                m += `👤 [${u.name}] - ${uQ}片\n`;
+                u.orders.forEach(o=>{
+                    m += `▫️ ${o.n} x ${o.q}\n`;
+                    summary[o.n] = (summary[o.n] || 0) + o.q;
+                });
+                m += `💰 小計：$${uM}\n\n`;
+            }
+        });
+        let fee = calcFee(totalQty);
+        m += `==================\n📦 【總和統計清單】\n`;
+        Object.keys(summary).sort().forEach(k => m += `▪️ ${k}：${summary[k]} 片\n`);
+        m += `==================\n🏠 總片數：${totalQty} 片\n🚚 總運費：$${fee} 元\n💰 應付總額：$${totalMoney + fee} 元`;
+        window.location.href="https://line.me/R/msg/text/?"+encodeURIComponent(m);
+    }
+
+    window.onload = function() {
+        const saved = localStorage.getItem('muffinOrderData');
+        if (saved) users = JSON.parse(saved);
+        initMenu(); render();
+    };
+</script>
+</body>
+</html>S
