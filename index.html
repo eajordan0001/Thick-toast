@@ -55,8 +55,8 @@
 <div class="container">
     <div id="welcome" style="text-align:center; padding: 40px 20px;">
         <div style="font-size: 50px;">🍞</div>
-        <h3>貼上清單或開始點餐</h3>
-        <p style="font-size:13px; color:#888;">系統將根據片數自動套用正確運費級距</p>
+        <h3>貼上清單或對話內容</h3>
+        <p style="font-size:13px; color:#888;">系統會自動根據片數套用正確運費區間</p>
     </div>
 
     <div id="order-ui" style="display:none">
@@ -75,7 +75,7 @@
         <div>總計：<b id="t-qty" style="color:var(--main)">0</b> 片</div>
         <div style="font-size: 12px; color: #888;">應付：$<span id="total">0</span></div>
     </div>
-    <textarea class="coop-textarea" id="coop-input" placeholder="可貼上群組訊息進行自動整理..."></textarea>
+    <textarea class="coop-textarea" id="coop-input" placeholder="可在此貼上對話，點擊整理清單..."></textarea>
     <div class="coop-btns">
         <button class="btn-organize" onclick="organizeText()">整理清單</button>
         <button class="btn-final-line" onclick="goLine()">匯出最終 LINE</button>
@@ -107,6 +107,7 @@
 <script>
     let users=[], cur=-1;
     let tempOrders = [];
+    const STORAGE_KEY = 'thickToastApp';
     const menuData = [
         { price: 18, items: ["野生藍莓", "甜心草莓", "巧克力", "爆漿奶油", "芝麻花生", "奶酥", "曼特寧咖啡"] },
         { price: 21, items: ["甲仙芋頭", "萬丹紅豆", "太妃糖", "花生大王"] },
@@ -117,6 +118,20 @@
         { price: 43, items: ["濃厚乳酪", "日式明太子", "奧利奧超人"] },
         { price: 49, items: ["抹茶叔叔", "提拉米蘇"] }
     ];
+
+    function getFeeInfo(totalQty) {
+        if (totalQty === 0) return { fee: 0, note: "" };
+        if (totalQty >= 520) return { fee: 0, note: "($0，滿520片免運)" };
+        if (totalQty <= 20) return { fee: 240, note: "($240，1-20片)" };
+        if (totalQty <= 50) return { fee: 260, note: "($260，21-50片)" };
+        if (totalQty <= 60) return { fee: 290, note: "($290，51-60片)" };
+        if (totalQty <= 70) return { fee: 320, note: "($320，61-70片)" };
+        if (totalQty <= 90) return { fee: 350, note: "($350，71-90片)" };
+        if (totalQty <= 129) return { fee: 380, note: "($380，91-129片)" };
+        let boxCount = Math.floor(totalQty / 130);
+        let extraFee = boxCount * 130;
+        return { fee: extraFee, note: `($${extraFee}，分箱運費補貼)` };
+    }
 
     function initMenu() {
         let h = '';
@@ -137,78 +152,47 @@
         document.getElementById('menu-container').innerHTML = h;
     }
 
-    function getFeeInfo(totalQty) {
-        if (totalQty === 0) return { fee: 0, note: "" };
-        if (totalQty >= 520) return { fee: 0, note: "($0，滿520片免運)" };
-        if (totalQty <= 20) return { fee: 240, note: "($240，1-20片)" };
-        if (totalQty <= 50) return { fee: 260, note: "($260，21-50片)" };
-        if (totalQty <= 60) return { fee: 290, note: "($290，51-60片)" };
-        if (totalQty <= 70) return { fee: 320, note: "($320，61-70片)" };
-        if (totalQty <= 90) return { fee: 350, note: "($350，71-90片)" };
-        if (totalQty <= 129) return { fee: 380, note: "($380，91-129片)" };
-        
-        // 130片以上邏輯：每滿130片收一個箱子的運費，或者按倍數補貼
-        let boxCount = Math.floor(totalQty / 130);
-        let extraFee = boxCount * 130;
-        return { fee: extraFee, note: `($${extraFee}，分箱運費補貼)` };
-    }
-
     function organizeText() {
         const text = document.getElementById('coop-input').value;
-        if(!text.trim()) return alert("請先輸入內容");
+        if(!text.trim()) return alert("請輸入內容");
         const allItems = menuData.flatMap(g => g.items);
-        const lines = text.split('\n');
         tempOrders = [];
         let currentPerson = "";
-
-        lines.forEach(line => {
-            let cleanLine = line.replace(/[▫️▪️\[\]👤💰▪]/g, '').trim();
-            if(!cleanLine || cleanLine.includes("總計") || cleanLine.includes("運費") || cleanLine.includes("小計") || cleanLine.includes("應付")) return;
-
-            const personMatch = cleanLine.match(/^([^\\s\\+x:\\d]{2,})/);
-            if(personMatch && !allItems.some(item => personMatch[1].includes(item))) {
-                currentPerson = personMatch[1].trim();
-            }
-
-            allItems.forEach(item => {
-                if (cleanLine.includes(item)) {
-                    let qty = 0;
-                    const xMatch = cleanLine.match(new RegExp(`${item}.*?[xX\\+\\*\\s](\\d+)`));
-                    if(xMatch) { qty = parseInt(xMatch[1]); } 
-                    else {
-                        const parts = cleanLine.split(/\s+/);
-                        const lastPart = parts[parts.length - 1];
-                        if(/^\d+$/.test(lastPart)) qty = parseInt(lastPart);
-                    }
-                    if(qty > 0 && currentPerson) {
-                        let price = 0;
-                        menuData.forEach(g => { if(g.items.includes(item)) price = g.price; });
-                        tempOrders.push({ userName: currentPerson, item, qty, price });
+        text.split('\n').forEach(line => {
+            let cl = line.replace(/[▫️▪️\[\]👤💰▪]/g, '').trim();
+            if(!cl || cl.includes("總計") || cl.includes("運費") || cl.includes("小計") || cl.includes("應付")) return;
+            const pm = cl.match(/^([^\\s\\+x:\\d]{2,})/);
+            if(pm && !allItems.some(i => pm[1].includes(i))) currentPerson = pm[1].trim();
+            allItems.forEach(i => {
+                if (cl.includes(i)) {
+                    let q = 0, xm = cl.match(new RegExp(`${i}.*?[xX\\+\\*\\s](\\d+)`));
+                    if(xm) q = parseInt(xm[1]);
+                    else { const pts = cl.split(/\s+/); const lp = pts[pts.length - 1]; if(/^\d+$/.test(lp)) q = parseInt(lp); }
+                    if(q > 0 && currentPerson) {
+                        let p = 0; menuData.forEach(g => { if(g.items.includes(i)) p = g.price; });
+                        tempOrders.push({ userName: currentPerson, item: i, qty: q, price: p });
                     }
                 }
             });
         });
-
         if(tempOrders.length > 0) {
-            let reportH = tempOrders.map(o => `<b>${o.userName}</b>：${o.item} x ${o.qty}`).join('<br>');
-            document.getElementById('report-list').innerHTML = reportH;
+            document.getElementById('report-list').innerHTML = tempOrders.map(o => `<b>${o.userName}</b>：${o.item} x ${o.qty}`).join('<br>');
             document.getElementById('report-modal').style.display = 'flex';
-        } else { alert("❌ 無法辨識內容。"); }
+        } else alert("無法辨識品項");
     }
 
     function closeReport(confirm) {
         if(confirm) {
             tempOrders.forEach(o => {
-                let user = users.find(u => u.name === o.userName);
-                if(!user) { user = {name: o.userName, orders: []}; users.push(user); }
-                let existing = user.orders.find(ord => ord.n === o.item);
-                if(existing) { existing.q += o.qty; } else { user.orders.push({n: o.item, p: o.price, q: o.qty}); }
+                let u = users.find(x => x.name === o.userName);
+                if(!u) { u = {name: o.userName, orders: []}; users.push(u); }
+                let ex = u.orders.find(ord => ord.n === o.item);
+                if(ex) ex.q += o.qty; else u.orders.push({n: o.item, p: o.price, q: o.qty});
             });
             document.getElementById('coop-input').value = ''; 
             if(cur < 0) cur = 0; render();
         }
         document.getElementById('report-modal').style.display = 'none';
-        tempOrders = [];
     }
 
     function showM(s){ document.getElementById('modal').style.display=s?'flex':'none'; }
@@ -219,20 +203,19 @@
     function setI(el){ document.querySelectorAll('.i-opt').forEach(b=>b.classList.remove('active')); el.classList.add('active'); }
     function adj(btn,d){ event.stopPropagation(); let input=btn.parentNode.querySelector('.qty-input'); let v=(parseInt(input.value) || 0)+d; if(v<1) v=1; input.value=v; }
     function quickAdd(btn) {
-        event.stopPropagation();
-        if(cur < 0) return alert("請先選擇上方人員");
+        event.stopPropagation(); if(cur < 0) return alert("選擇人員標籤");
         let row = btn.closest('.i-opt'), q = parseInt(row.querySelector('.qty-input').value) || 1;
-        let name = row.dataset.name, price = parseInt(row.dataset.price);
-        let existing = users[cur].orders.find(o => o.n === name);
-        if (existing) { existing.q += q; } else { users[cur].orders.push({ n:name, p:price, q:q }); }
+        let n = row.dataset.name, p = parseInt(row.dataset.price);
+        let ex = users[cur].orders.find(o => o.n === n);
+        if (ex) ex.q += q; else users[cur].orders.push({ n:n, p:p, q:q });
         row.querySelector('.qty-input').value = 1; render();
     }
 
     function render(){
-        let th='<button class="btn-add" onclick="showM(true)">+ 新增</button>', totalQty=0, totalMoney=0;
+        let th='<button class="btn-add" onclick="showM(true)">+ 新增</button>', tQ=0, tM=0;
         users.forEach((u,i)=>{ 
-            let uQ = u.orders.reduce((s,o)=>s+o.q, 0); totalQty += uQ;
-            totalMoney += u.orders.reduce((s,o)=>s+(o.p*o.q), 0);
+            let uQ = u.orders.reduce((s,o)=>s+o.q, 0); tQ += uQ;
+            tM += u.orders.reduce((s,o)=>s+(o.p*o.q), 0);
             th+=`<div class="user-tab ${i===cur?'active':''}" onclick="cur=${i};render()">
                 <span>${u.name}</span>${uQ>0?`<span class="cart-count">${uQ}</span>`:''}<span class="del-u" onclick="event.stopPropagation();if(confirm('刪除？')){users.splice(${i},1);if(cur==${i})cur=-1;render()}">×</span>
             </div>`;
@@ -241,37 +224,35 @@
         if(cur>=0 && users[cur]){
             document.getElementById('welcome').style.display='none'; document.getElementById('order-ui').style.display='block';
             document.getElementById('cur-u-name').innerText=`👤 ${users[cur].name}`;
-            let oh=''; 
-            users[cur].orders.forEach((o,oi)=>oh+=`<div class="order-item"><div><b>${o.n}</b> ($${o.p})<br><small>${o.q}片 = $${o.p*o.q}</small></div><button onclick="users[${cur}].orders.splice(${oi},1);render()" style="color:var(--red);border:1px solid;padding:5px;border-radius:5px;background:none;">刪除</button></div>`);
-            document.getElementById('items-box').innerHTML=oh || '<p style="text-align:center;color:#aaa">請點選下方口味加入</p>';
+            document.getElementById('items-box').innerHTML = users[cur].orders.map((o,oi)=>`<div class="order-item"><div><b>${o.n}</b> ($${o.p})<br><small>${o.q}片 = $${o.p*o.q}</small></div><button onclick="users[${cur}].orders.splice(${oi},1);render()" style="color:var(--red);border:1px solid;padding:5px;border-radius:5px;background:none;">刪除</button></div>`).join('') || '<p style="text-align:center;color:#aaa">點選下方口味加入</p>';
         } else { document.getElementById('welcome').style.display='block'; document.getElementById('order-ui').style.display='none'; }
-        let f = getFeeInfo(totalQty);
-        document.getElementById('t-qty').innerText = totalQty;
-        document.getElementById('total').innerText = totalMoney + f.fee;
-        localStorage.setItem('thickToastFinal', JSON.stringify(users));
+        let f = getFeeInfo(tQ);
+        document.getElementById('t-qty').innerText = tQ;
+        document.getElementById('total').innerText = tM + f.fee;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
     }
 
     function goLine(){
         if(!users.some(u=>u.orders.length)) return alert("清單是空的");
-        let m="【🍞 厚片吐司團購彙整報表】\n\n", totalQty=0, totalMoney=0, summary={};ㄑ
+        let m="【🍞 厚片吐司團購彙整報表】\n\n", tQ=0, tM=0, smry={};
         users.forEach(u=>{
             if(u.orders.length){
                 let uQ = u.orders.reduce((s,o)=>s+o.q,0), uM = u.orders.reduce((s,o)=>s+(o.p*o.q),0);
-                totalQty += uQ; totalMoney += uM;
+                tQ += uQ; tM += uM;
                 m += `👤 [${u.name}]：${uQ}片\n`;
-                u.orders.forEach(o=>{ m += `▫️ ${o.n} ($${o.p}) x ${o.q}\n`; summary[o.n] = (summary[o.n] || 0) + o.q; });
+                u.orders.forEach(o=>{ m += `▫️ ${o.n} ($${o.p}) x ${o.q}\n`; smry[o.n] = (smry[o.n] || 0) + o.q; });
                 m += `💰 小計：$${uM}\n\n`;
             }
         });
-        let f = getFeeInfo(totalQty);
+        let f = getFeeInfo(tQ);
         m += `==================\n📦 【出貨統計總表】\n`;
-        Object.keys(summary).sort().forEach(k => { m += `▪️ ${k}：${summary[k]} 片 ${(summary[k]%5===0)?'':'⚠️'}\n`; });
-        m += `==================\n🏠 總片數：${totalQty} 片\n🚚 運費：${f.note}\n💰 總應付：$${totalMoney + f.fee} 元`;
+        Object.keys(smry).sort().forEach(k => { m += `▪️ ${k}：${smry[k]} 片 ${(smry[k]%5===0)?'':'⚠️'}\n`; });
+        m += `==================\n🏠 總片數：${tQ} 片\n🚚 運費：${f.note}\n💰 總應付：$${tM + f.fee} 元`;
         window.location.href="https://line.me/R/msg/text/?"+encodeURIComponent(m);
     }
 
     window.onload = function() {
-        const saved = localStorage.getItem('thickToastFinal');
+        const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) users = JSON.parse(saved);
         initMenu(); render();
     };
