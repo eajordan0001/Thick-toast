@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🍞 馬芬湯種厚片吐司 團購助手 V5.0</title>
+    <title>🍞 馬芬湯種厚片吐司 團購助手 V5.1</title>
     <style>
         :root { --main: #e67e22; --dark: #2c3e50; --line: #00B900; --red: #e74c3c; --bg: #fdf5e6; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, "Noto Sans TC", sans-serif; }
@@ -15,7 +15,7 @@
         .user-nav { 
             background: #3e2723; display: flex; overflow-x: auto; padding: 12px; gap: 10px; 
             align-items: center; min-height: 65px; border-bottom: 2px solid #000;
-            scrollbar-width: none; 
+            -ms-overflow-style: none; scrollbar-width: none; 
         }
         .user-nav::-webkit-scrollbar { display: none; }
 
@@ -129,25 +129,24 @@
         document.getElementById('menu-container').innerHTML = h;
     }
 
-    // 運費計算邏輯 (依照附圖表格)
-    function calcFee(totalQty) {
-        if (totalQty === 0) return 0;
-        if (totalQty >= 520) return 0; // 520片以上免運費
+    // 運費與區間文字描述
+    function getFeeInfo(totalQty) {
+        if (totalQty === 0) return { fee: 0, note: "" };
+        if (totalQty >= 520) return { fee: 0, note: "(520片以上免運)" };
         
-        // 階梯運費
-        if (totalQty <= 20) return 240;
-        if (totalQty <= 50) return 260;
-        if (totalQty <= 60) return 290;
-        if (totalQty <= 70) return 320;
-        if (totalQty <= 90) return 350;
-        if (totalQty <= 129) return 380;
+        if (totalQty <= 20) return { fee: 240, note: "(1-20片)" };
+        if (totalQty <= 50) return { fee: 260, note: "(21-50片)" };
+        if (totalQty <= 60) return { fee: 290, note: "(51-60片)" };
+        if (totalQty <= 70) return { fee: 320, note: "(61-70片)" };
+        if (totalQty <= 90) return { fee: 350, note: "(71-90片)" };
+        if (totalQty <= 129) return { fee: 380, note: "(91-129片)" };
         
-        // 箱數加成 (130片為一箱基準)
-        if (totalQty >= 130 && totalQty < 260) return 130;
-        if (totalQty >= 260 && totalQty < 390) return 130;
-        if (totalQty >= 390 && totalQty < 520) return 130;
+        // 箱數邏輯
+        if (totalQty >= 130 && totalQty < 260) return { fee: 130, note: "(130-259片/一箱加成)" };
+        if (totalQty >= 260 && totalQty < 390) return { fee: 130, note: "(260-389片/二箱加成)" };
+        if (totalQty >= 390 && totalQty < 520) return { fee: 130, note: "(390-519片/三箱加成)" };
         
-        return 0;
+        return { fee: 0, note: "" };
     }
 
     function showM(s){ document.getElementById('modal').style.display=s?'flex':'none'; }
@@ -161,7 +160,7 @@
         event.stopPropagation(); 
         let input=btn.parentNode.querySelector('.qty-input'); 
         let v=(parseInt(input.value) || 0)+d; 
-        if(v<5) v=5; // 最低5片
+        if(v<5) v=5; 
         input.value=v; 
     }
 
@@ -203,10 +202,10 @@
             document.getElementById('items-box').innerHTML=oh || '<p style="text-align:center;color:#aaa">點選下方口味新增</p>';
         }
 
-        let fee = calcFee(totalQty);
+        let feeInfo = getFeeInfo(totalQty);
         document.getElementById('t-qty').innerText = totalQty;
-        document.getElementById('fee-amt').innerText = fee;
-        document.getElementById('total').innerText = `$${totalMoney + fee}`;
+        document.getElementById('fee-amt').innerText = feeInfo.fee;
+        document.getElementById('total').innerText = `$${totalMoney + feeInfo.fee}`;
         localStorage.setItem('muffinOrderData', JSON.stringify(users));
     }
 
@@ -220,16 +219,20 @@
                 totalQty += uQ; totalMoney += uM;
                 m += `👤 [${u.name}] - ${uQ}片\n`;
                 u.orders.forEach(o=>{
-                    m += `▫️ ${o.n} x ${o.q}\n`;
+                    m += `▫️ ${o.n} ($${o.p}) x ${o.q}\n`;
                     summary[o.n] = (summary[o.n] || 0) + o.q;
                 });
                 m += `💰 小計：$${uM}\n\n`;
             }
         });
-        let fee = calcFee(totalQty);
+        let feeInfo = getFeeInfo(totalQty);
         m += `==================\n📦 【總和統計清單】\n`;
-        Object.keys(summary).sort().forEach(k => m += `▪️ ${k}：${summary[k]} 片\n`);
-        m += `==================\n🏠 總片數：${totalQty} 片\n🚚 總運費：$${fee} 元\n💰 應付總額：$${totalMoney + fee} 元`;
+        Object.keys(summary).sort().forEach(k => {
+            let p = 0;
+            menuData.forEach(g => { if(g.items.includes(k)) p = g.price; });
+            m += `▪️ ${k} ($${p})：${summary[k]} 片\n`;
+        });
+        m += `==================\n🏠 總片數：${totalQty} 片\n🚚 總運費：$${feeInfo.fee} ${feeInfo.note}\n💰 應付總額：$${totalMoney + feeInfo.fee} 元`;
         window.location.href="https://line.me/R/msg/text/?"+encodeURIComponent(m);
     }
 
@@ -240,4 +243,4 @@
     };
 </script>
 </body>
-</html>S
+</html>
