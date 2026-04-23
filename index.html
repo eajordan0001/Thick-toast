@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🍞 馬芬吐司團購助手 V5.2 協作版</title>
+    <title>🍞 吐司團購助手 V5.2 協作版</title>
     <style>
         :root { --main: #e67e22; --dark: #2c3e50; --line: #00B900; --red: #e74c3c; --bg: #fdf5e6; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, "Noto Sans TC", sans-serif; }
@@ -57,7 +57,7 @@
 </head>
 <body>
 
-<div class="header">馬芬湯種厚片吐司 團購助手 (協作版)</div>
+<div class="header">湯種厚片吐司 團購助手 (協作版)</div>
 <div class="price-info">⚠️ 每種口味 <b>5的倍數</b> 下單！<br>🚚 滿 520 片免運</div>
 
 <div class="user-nav" id="tabs"></div>
@@ -244,7 +244,7 @@
 
     function goLine(){
         if(!users.some(u=>u.orders.length)) return alert("無訂單");
-        let m="【🍞 馬芬吐司團購 最終彙整報表】\n\n", totalQty=0, totalMoney=0, summary={};
+        let m="【🍞 吐司團購 最終彙整報表】\n\n", totalQty=0, totalMoney=0, summary={};
         users.forEach(u=>{
             if(u.orders.length){
                 let uQ = u.orders.reduce((s,o)=>s+o.q,0);
