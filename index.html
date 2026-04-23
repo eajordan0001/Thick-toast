@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🍞 厚片吐司 團購助手 V5.1</title>
+    <title>🍞 馬芬吐司團購助手 V5.2 協作版</title>
     <style>
         :root { --main: #e67e22; --dark: #2c3e50; --line: #00B900; --red: #e74c3c; --bg: #fdf5e6; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, "Noto Sans TC", sans-serif; }
-        body { background: var(--bg); margin: 0; padding-bottom: 160px; color: #333; }
+        body { background: var(--bg); margin: 0; padding-bottom: 250px; color: #333; }
         .header { background: #ba8b5e; color: #fff; text-align: center; padding: 12px; font-weight: bold; position: sticky; top: 0; z-index: 100; border-bottom: 3px solid #8e5e31; }
         .price-info { background: #fffbe6; color: #5d4037; text-align: center; padding: 10px; font-size: 13px; border-bottom: 1px solid #ddd; line-height: 1.5; }
         .price-info b { color: var(--red); }
@@ -41,11 +41,14 @@
         .qty-input { width: 45px; height: 32px; text-align: center; border: 1px solid #ccc; border-radius: 5px; font-weight: bold; }
         .btn-quick-add { background: var(--main); color: white; border: none; border-radius: 5px; width: 35px; height: 32px; font-weight: bold; cursor: pointer; }
 
-        .footer { position: fixed; bottom: 0; width: 100%; background: #fff; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 100; border-top: 2px solid #ba8b5e; }
-        .price-num { font-size: 28px; font-weight: 900; color: #d35400; }
-        .fee-tag { font-size: 12px; color: #7f8c8d; }
-        .btn-line { background: var(--line); color: #fff; padding: 12px 20px; border-radius: 12px; font-weight: bold; border:none; cursor:pointer; }
-        
+        /* 底部協作框 */
+        .coop-panel { position: fixed; bottom: 0; width: 100%; background: #fff; border-top: 2px solid #ba8b5e; z-index: 200; padding: 10px; box-shadow: 0 -5px 15px rgba(0,0,0,0.2); }
+        .coop-textarea { width: 100%; height: 80px; border: 1px solid #ccc; border-radius: 10px; padding: 10px; font-size: 13px; resize: none; margin-bottom: 8px; }
+        .coop-btns { display: flex; gap: 10px; }
+        .btn-organize { flex: 1; background: #3e2723; color: #fff; border: none; border-radius: 10px; padding: 12px; font-weight: bold; cursor: pointer; }
+        .btn-final-line { flex: 1; background: var(--line); color: #fff; border: none; border-radius: 10px; padding: 12px; font-weight: bold; cursor: pointer; }
+        .summary-info { font-size: 14px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+
         .modal-bg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: #fff; width: 85%; max-width: 350px; padding: 25px; border-radius: 20px; text-align: center; }
         .input-box { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; margin-top: 10px; }
@@ -54,15 +57,15 @@
 </head>
 <body>
 
-<div class="header">厚片吐司 團購助手</div>
-<div class="price-info">⚠️ 每種口味請以 <b>5的倍數</b> 下單，不可以零散訂購！<br> 🚚 滿 <b> 520 片以上</b>免運費</div>
+<div class="header">馬芬湯種厚片吐司 團購助手 (協作版)</div>
+<div class="price-info">⚠️ 每種口味 <b>5的倍數</b> 下單！<br>🚚 滿 520 片免運</div>
 
 <div class="user-nav" id="tabs"></div>
 
 <div class="container">
     <div id="welcome" style="text-align:center; padding: 40px 20px;">
-        <div style="font-size: 50px;">🍞</div>
-        <h3>請點擊上方「新增」或選擇人員</h3>
+        <div style="font-size: 50px;">🥪</div>
+        <h3>選擇人員或在下方貼上多人名單</h3>
     </div>
 
     <div id="order-ui" style="display:none">
@@ -76,19 +79,22 @@
     </div>
 </div>
 
-<div class="footer">
-    <div>
-        <span id="t-qty" style="color:var(--main);font-weight:bold;">0</span> 片吐司<br>
-        <span class="fee-tag">含運費：$<span id="fee-amt">0</span></span>
-        <div class="price-num" id="total">$0</div>
+<div class="coop-panel">
+    <div class="summary-info">
+        <div>總計：<b id="t-qty" style="color:var(--main)">0</b> 片 / $<span id="total">0</span></div>
+        <div style="font-size: 11px; color: #888;">運費：$<span id="fee-amt">0</span> <span id="fee-note"></span></div>
     </div>
-    <button class="btn-line" onclick="goLine()">匯出 LINE</button>
+    <textarea class="coop-textarea" id="coop-input" placeholder="可在此貼上群組對話內容（例如：王小明 野生藍莓+5, 巧克力+10）..."></textarea>
+    <div class="coop-btns">
+        <button class="btn-organize" onclick="organizeText()">整理清單</button>
+        <button class="btn-final-line" onclick="goLine()">匯出彙整 LINE</button>
+    </div>
 </div>
 
 <div class="modal-bg" id="modal">
     <div class="modal-content">
-        <h3>新增開單姓名</h3>
-        <input type="text" id="name-in" class="input-box" placeholder="例如：主任">
+        <h3>新增姓名</h3>
+        <input type="text" id="name-in" class="input-box">
         <div style="display:flex;gap:10px;margin-top:20px;">
             <button onclick="showM(false)" style="flex:1;padding:12px;border:none;border-radius:10px;">取消</button>
             <button onclick="addU()" style="flex:1;padding:12px;border:none;border-radius:10px;background:var(--main);color:#fff;">確定</button>
@@ -118,9 +124,9 @@
                     <span class="opt-name">${name}</span>
                     <span class="opt-price">$${group.price}</span>
                     <div class="qty-controls">
-                        <button class="qty-btn" onclick="adj(this,-5)">-5</button>
-                        <input type="number" class="qty-input" value="5" readonly>
-                        <button class="qty-btn" onclick="adj(this,5)">+5</button>
+                        <button class="qty-btn" onclick="adj(this,-1)">-1</button>
+                        <input type="number" class="qty-input" value="1" onchange="this.value=Math.max(1,this.value)" onclick="event.stopPropagation()">
+                        <button class="qty-btn" onclick="adj(this,1)">+1</button>
                         <button class="btn-quick-add" onclick="quickAdd(this)">✓</button>
                     </div>
                 </div>`;
@@ -129,24 +135,56 @@
         document.getElementById('menu-container').innerHTML = h;
     }
 
-    // 運費與區間文字描述
     function getFeeInfo(totalQty) {
         if (totalQty === 0) return { fee: 0, note: "" };
         if (totalQty >= 520) return { fee: 0, note: "(520片以上免運)" };
-        
         if (totalQty <= 20) return { fee: 240, note: "(1-20片)" };
         if (totalQty <= 50) return { fee: 260, note: "(21-50片)" };
         if (totalQty <= 60) return { fee: 290, note: "(51-60片)" };
         if (totalQty <= 70) return { fee: 320, note: "(61-70片)" };
         if (totalQty <= 90) return { fee: 350, note: "(71-90片)" };
         if (totalQty <= 129) return { fee: 380, note: "(91-129片)" };
-        
-        // 箱數邏輯
-        if (totalQty >= 130 && totalQty < 260) return { fee: 130, note: "(130-259片/一箱優惠)" };
-        if (totalQty >= 260 && totalQty < 390) return { fee: 130, note: "(260-389片/二箱優惠)" };
-        if (totalQty >= 390 && totalQty < 520) return { fee: 130, note: "(390-519片/三箱優惠)" };
-        
+        if (totalQty >= 130 && totalQty < 260) return { fee: 130, note: "(130-259片)" };
+        if (totalQty >= 260 && totalQty < 390) return { fee: 130, note: "(260-389片)" };
+        if (totalQty >= 390 && totalQty < 520) return { fee: 130, note: "(390-519片)" };
         return { fee: 0, note: "" };
+    }
+
+    // [核心] 人肉協作：解析文字
+    function organizeText() {
+        const text = document.getElementById('coop-input').value;
+        if(!text) return alert("請貼上文字內容");
+        
+        const allItems = menuData.flatMap(g => g.items);
+        const lines = text.split('\n');
+        
+        lines.forEach(line => {
+            // 嘗試從每行抓姓名與品項數量
+            // 規則假設： 姓名 品項+數量 或 姓名:品項x數量
+            allItems.forEach(item => {
+                const reg = new RegExp(`([^\\s+x,：:]+).+?${item}[+x*：:]?(\\d+)`, 'i');
+                const match = line.match(reg);
+                if(match) {
+                    let userName = match[1].trim();
+                    let qty = parseInt(match[2]);
+                    
+                    let user = users.find(u => u.name === userName);
+                    if(!user) {
+                        user = {name: userName, orders: []};
+                        users.push(user);
+                    }
+                    
+                    let price = 0;
+                    menuData.forEach(g => { if(g.items.includes(item)) price = g.price; });
+                    
+                    let existing = user.orders.find(o => o.n === item);
+                    if(existing) { existing.q += qty; }
+                    else { user.orders.push({n: item, p: price, q: qty}); }
+                }
+            });
+        });
+        document.getElementById('coop-input').value = '';
+        render();
     }
 
     function showM(s){ document.getElementById('modal').style.display=s?'flex':'none'; }
@@ -154,35 +192,30 @@
         let n=document.getElementById('name-in').value.trim(); 
         if(n){ users.push({name:n,orders:[]}); cur=users.length-1; showM(false); document.getElementById('name-in').value=''; render(); }
     }
-
     function setI(el){ document.querySelectorAll('.i-opt').forEach(b=>b.classList.remove('active')); el.classList.add('active'); }
     function adj(btn,d){ 
         event.stopPropagation(); 
         let input=btn.parentNode.querySelector('.qty-input'); 
         let v=(parseInt(input.value) || 0)+d; 
-        if(v<5) v=5; 
+        if(v<1) v=1; 
         input.value=v; 
     }
-
     function quickAdd(btn) {
         event.stopPropagation();
-        if(cur < 0) return;
+        if(cur < 0) return alert("請先選擇或新增人員");
         let row = btn.closest('.i-opt');
-        let q = parseInt(row.querySelector('.qty-input').value) || 5;
+        let q = parseInt(row.querySelector('.qty-input').value) || 1;
         let name = row.dataset.name;
         let price = parseInt(row.dataset.price);
-
-        let existing = users[cur].orders.find(o => o.n === name);
-        if (existing) { existing.q += q; } 
-        else { users[cur].orders.push({ n:name, p:price, q:q }); }
-
-        row.querySelector('.qty-input').value = 5;
+        let user = users[cur];
+        let existing = user.orders.find(o => o.n === name);
+        if (existing) { existing.q += q; } else { user.orders.push({ n:name, p:price, q:q }); }
+        row.querySelector('.qty-input').value = 1;
         render();
     }
 
     function render(){
         let th='<button class="btn-add" onclick="showM(true)">+ 新增</button>', totalQty=0, totalMoney=0;
-        
         users.forEach((u,i)=>{ 
             let uQ = u.orders.reduce((s,o)=>s+o.q, 0);
             totalQty += uQ;
@@ -192,26 +225,26 @@
             </div>`;
         });
         document.getElementById('tabs').innerHTML=th;
-
         if(cur>=0 && users[cur]){
-            document.getElementById('welcome').style.display='none'; 
-            document.getElementById('order-ui').style.display='block';
+            document.getElementById('welcome').style.display='none'; document.getElementById('order-ui').style.display='block';
             document.getElementById('cur-u-name').innerText=`👤 ${users[cur].name}`;
             let oh=''; 
             users[cur].orders.forEach((o,oi)=>oh+=`<div class="order-item"><div><b>${o.n}</b> ($${o.p})<br><small>${o.q}片 = $${o.p*o.q}</small></div><button onclick="users[${cur}].orders.splice(${oi},1);render()" style="color:var(--red);border:1px solid;padding:5px;border-radius:5px;background:none;">刪除</button></div>`);
-            document.getElementById('items-box').innerHTML=oh || '<p style="text-align:center;color:#aaa">點選下方口味新增</p>';
+            document.getElementById('items-box').innerHTML=oh || '<p style="text-align:center;color:#aaa">選擇口味加入</p>';
+        } else {
+            document.getElementById('welcome').style.display='block'; document.getElementById('order-ui').style.display='none';
         }
-
         let feeInfo = getFeeInfo(totalQty);
         document.getElementById('t-qty').innerText = totalQty;
         document.getElementById('fee-amt').innerText = feeInfo.fee;
-        document.getElementById('total').innerText = `$${totalMoney + feeInfo.fee}`;
-        localStorage.setItem('muffinOrderData', JSON.stringify(users));
+        document.getElementById('fee-note').innerText = feeInfo.note;
+        document.getElementById('total').innerText = totalMoney + feeInfo.fee;
+        localStorage.setItem('muffinCoopData', JSON.stringify(users));
     }
 
     function goLine(){
-        if(!users.some(u=>u.orders.length)) return alert("目前無訂單");
-        let m="【🍞 厚片吐司 團購報表】\n\n", totalQty=0, totalMoney=0, summary={};
+        if(!users.some(u=>u.orders.length)) return alert("無訂單");
+        let m="【🍞 馬芬吐司團購 最終彙整報表】\n\n", totalQty=0, totalMoney=0, summary={};
         users.forEach(u=>{
             if(u.orders.length){
                 let uQ = u.orders.reduce((s,o)=>s+o.q,0);
@@ -226,18 +259,18 @@
             }
         });
         let feeInfo = getFeeInfo(totalQty);
-        m += `==================\n📦 【總和統計清單】\n`;
+        m += `==================\n📦 【店家出貨統計】\n`;
         Object.keys(summary).sort().forEach(k => {
-            let p = 0;
-            menuData.forEach(g => { if(g.items.includes(k)) p = g.price; });
-            m += `▪️ ${k} ($${p})：${summary[k]} 片\n`;
+            let p = 0; menuData.forEach(g => { if(g.items.includes(k)) p = g.price; });
+            let isMultipleOf5 = summary[k] % 5 === 0;
+            m += `▪️ ${k} ($${p})：${summary[k]} 片 ${isMultipleOf5 ? '' : '⚠️非5倍數!'}\n`;
         });
-        m += `==================\n🏠 總片數：${totalQty} 片\n🚚 總運費：$${feeInfo.fee} ${feeInfo.note}\n💰 應付總額：$${totalMoney + feeInfo.fee} 元`;
+        m += `==================\n🏠 總片數：${totalQty} 片\n🚚 總運費：$${feeInfo.fee} ${feeInfo.note}\n💰 總應付：$${totalMoney + feeInfo.fee} 元`;
         window.location.href="https://line.me/R/msg/text/?"+encodeURIComponent(m);
     }
 
     window.onload = function() {
-        const saved = localStorage.getItem('muffinOrderData');
+        const saved = localStorage.getItem('muffinCoopData');
         if (saved) users = JSON.parse(saved);
         initMenu(); render();
     };
