@@ -9,10 +9,8 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, "Noto Sans TC", sans-serif; scroll-behavior: smooth; }
         body { background: var(--bg); margin: 0; padding-bottom: 300px; color: #333; }
         
-        /* 第一層固定標題 */
+        /* 固定標題 */
         .header { background: #ba8b5e; color: #fff; text-align: center; padding: 12px; font-weight: bold; position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid #8e5e31; height: 48px; }
-        
-        .price-info { background: #fffbe6; color: #d35400; text-align: center; padding: 10px; font-size: 13px; border-bottom: 1px solid #ddd; line-height: 1.6; font-weight: bold; }
         
         .user-nav { background: #3e2723; display: flex; overflow-x: auto; padding: 12px; gap: 10px; align-items: center; min-height: 65px; border-bottom: 2px solid #000; scrollbar-width: none; }
         .user-nav::-webkit-scrollbar { display: none; }
@@ -22,23 +20,32 @@
         .cart-count { background: var(--main); color: #fff; border-radius: 50%; font-size: 11px; padding: 1px 6px; margin-left: -5px; }
         .del-u { color: var(--red); font-weight: bold; font-size: 18px; padding-left: 5px; }
         
-        /* 第二層固定導覽列 (Top 48px) */
+        /* 優化：改為 4欄 2列 的固定網格 */
         .price-nav { 
-            display: flex; 
-            overflow-x: auto; 
-            gap: 8px; 
-            padding: 10px 15px; 
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, auto);
+            gap: 6px;
+            padding: 10px; 
             background: #fff; 
             border-bottom: 1px solid #ddd; 
             position: sticky; 
             top: 48px; 
             z-index: 900; 
-            scrollbar-width: none;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        .price-nav::-webkit-scrollbar { display: none; }
-        .nav-price-btn { background: #f0e6dd; color: #5d4037; border: none; padding: 8px 15px; border-radius: 15px; font-size: 13px; font-weight: bold; white-space: nowrap; cursor: pointer; border: 1px solid #d7ccc8; }
-        .nav-price-btn:active { background: #ba8b5e; color: #fff; }
+        .nav-price-btn { 
+            background: #f0e6dd; 
+            color: #5d4037; 
+            border: 1px solid #d7ccc8; 
+            padding: 8px 0; 
+            border-radius: 10px; 
+            font-size: 13px; 
+            font-weight: bold; 
+            text-align: center;
+            cursor: pointer; 
+        }
+        .nav-price-btn:active { background: #ba8b5e; color: #fff; border-color: #ba8b5e; }
 
         .container { padding: 15px; max-width: 500px; margin: auto; }
         .card { background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid #d7ccc8; }
@@ -82,9 +89,8 @@
     </div>
 
     <div id="order-ui" style="display:none">
-        <div class="price-info">
-            ⚠️ 每種口味請以 5 的倍數下單<br>
-            🚚 滿 520 片免運費
+        <div style="background: #fffbe6; color: #d35400; text-align: center; padding: 8px; font-size: 12px; font-weight: bold;">
+            🚚 滿 520 片免運費 / 口味請以 5 的倍數下單
         </div>
         
         <div class="price-nav" id="price-nav"></div>
@@ -104,7 +110,7 @@
         <div>總計：<b id="t-qty" style="color:var(--main)">0</b> 片</div>
         <div style="font-size: 12px; color: #888;">應付：$<span id="total">0</span></div>
     </div>
-    <textarea class="coop-textarea" id="coop-input" placeholder="可在此貼上對話進行整理..."></textarea>
+    <textarea class="coop-textarea" id="coop-input" placeholder="可貼上對話內容進行整理..."></textarea>
     <div class="coop-btns">
         <button class="btn-organize" onclick="organizeText()">整理清單</button>
         <button class="btn-final-line" onclick="goLine()">匯出最終 LINE</button>
@@ -136,7 +142,7 @@
 <script>
     let users=[], cur=-1;
     let tempOrders = [];
-    const STORAGE_KEY = 'toast_helper_v7';
+    const STORAGE_KEY = 'toast_helper_v8';
     const menuData = [
         { price: 18, items: ["野生藍莓", "甜心草莓", "巧克力", "爆漿奶油", "芝麻花生", "奶酥", "曼特寧咖啡"] },
         { price: 21, items: ["甲仙芋頭", "萬丹紅豆", "太妃糖", "花生大王"] },
@@ -183,8 +189,8 @@
     function scrollToPrice(price) {
         const target = document.getElementById(`section-${price}`);
         if (target) {
-            // 補償位移：header (48px) + price-nav (約 55px) + 少許緩衝
-            const offset = 110; 
+            // 因為現在是兩列按鈕，導覽列變高了，補償量增加到約 145px
+            const offset = 145; 
             const bodyRect = document.body.getBoundingClientRect().top;
             const elementRect = target.getBoundingClientRect().top;
             const elementPosition = elementRect - bodyRect;
@@ -201,7 +207,7 @@
         let menuHtml = '';
         let navHtml = '';
         menuData.forEach(group => {
-            navHtml += `<button class="nav-price-btn" onclick="scrollToPrice(${group.price})">$${group.price}</button>`;
+            navHtml += `<div class="nav-price-btn" onclick="scrollToPrice(${group.price})">$${group.price}</div>`;
             menuHtml += `<span class="section-h" id="section-${group.price}">${group.price} 元區</span>`;
             group.items.forEach(name => {
                 menuHtml += `<div class="opt-row i-opt" data-price="${group.price}" data-name="${name}" onclick="setI(this)">
@@ -221,7 +227,7 @@
 
     function organizeText() {
         const text = document.getElementById('coop-input').value;
-        if(!text.trim()) return alert("請貼上文字內容");
+        if(!text.trim()) return alert("請貼上清單文字");
         const allItems = menuData.flatMap(g => g.items);
         tempOrders = [];
         let currentPerson = "";
@@ -245,7 +251,7 @@
         if(tempOrders.length > 0) {
             document.getElementById('report-list').innerHTML = tempOrders.map(o => `<b>${o.userName}</b>：${o.item} x ${o.qty}`).join('<br>');
             document.getElementById('report-modal').style.display = 'flex';
-        } else alert("無法解析訂單");
+        } else alert("無法解析");
     }
 
     function closeReport(confirm) {
@@ -270,7 +276,7 @@
     function setI(el){ document.querySelectorAll('.i-opt').forEach(b=>b.classList.remove('active')); el.classList.add('active'); }
     function adj(btn,d){ event.stopPropagation(); let input=btn.parentNode.querySelector('.qty-input'); let v=(parseInt(input.value) || 0)+d; if(v<1) v=1; input.value=v; }
     function quickAdd(btn) {
-        event.stopPropagation(); if(cur < 0) return alert("請先選擇人員");
+        event.stopPropagation(); if(cur < 0) return alert("請先新增或選擇人員");
         let row = btn.closest('.i-opt'), q = parseInt(row.querySelector('.qty-input').value) || 1;
         let n = row.dataset.name, p = parseInt(row.dataset.price);
         let ex = users[cur].orders.find(o => o.n === n);
@@ -300,7 +306,7 @@
     }
 
     function goLine(){
-        if(!users.some(u=>u.orders.length)) return alert("請先加入訂單");
+        if(!users.some(u=>u.orders.length)) return alert("目前沒有訂單內容");
         let m="【🍞 厚片吐司團購彙整報表】\n\n", tQ=0, tM=0, smry={};
         users.forEach(u=>{
             if(u.orders.length){
