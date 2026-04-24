@@ -6,7 +6,7 @@
     <title>厚片吐司團購助手</title>
     <style>
         :root { --main: #e67e22; --dark: #2c3e50; --line: #00B900; --red: #e74c3c; --bg: #fdf5e6; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, "Noto Sans TC", sans-serif; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, "Noto Sans TC", sans-serif; scroll-behavior: smooth; }
         body { background: var(--bg); margin: 0; padding-bottom: 300px; color: #333; }
         .header { background: #ba8b5e; color: #fff; text-align: center; padding: 12px; font-weight: bold; position: sticky; top: 0; z-index: 100; border-bottom: 3px solid #8e5e31; }
         .price-info { background: #fffbe6; color: #d35400; text-align: center; padding: 10px; font-size: 13px; border-bottom: 1px solid #ddd; line-height: 1.6; font-weight: bold; }
@@ -17,6 +17,13 @@
         .user-tab.active { background: #fff; color: #3e2723; font-weight: bold; }
         .cart-count { background: var(--main); color: #fff; border-radius: 50%; font-size: 11px; padding: 1px 6px; margin-left: -5px; }
         .del-u { color: var(--red); font-weight: bold; font-size: 18px; padding-left: 5px; }
+        
+        /* 價格導航列樣式 */
+        .price-nav { display: flex; overflow-x: auto; gap: 8px; padding: 10px 0; margin-bottom: 15px; scrollbar-width: none; position: sticky; top: 48px; background: #fff; z-index: 90; border-bottom: 1px solid #eee; margin-left: -20px; margin-right: -20px; padding-left: 20px; }
+        .price-nav::-webkit-scrollbar { display: none; }
+        .nav-price-btn { background: #f0e6dd; color: #5d4037; border: none; padding: 8px 15px; border-radius: 15px; font-size: 13px; font-weight: bold; white-space: nowrap; cursor: pointer; border: 1px solid #d7ccc8; }
+        .nav-price-btn:active { background: #ba8b5e; color: #fff; }
+
         .container { padding: 15px; max-width: 500px; margin: auto; }
         .card { background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid #d7ccc8; }
         .card-body { padding: 20px; }
@@ -29,12 +36,14 @@
         .qty-btn { background: #d7ccc8; color: #3e2723; border: none; border-radius: 5px; font-weight: bold; width: 32px; height: 32px; cursor: pointer; }
         .qty-input { width: 45px; height: 32px; text-align: center; border: 1px solid #ccc; border-radius: 5px; font-weight: bold; }
         .btn-quick-add { background: var(--main); color: white; border: none; border-radius: 5px; width: 35px; height: 32px; font-weight: bold; cursor: pointer; }
+        
         .coop-panel { position: fixed; bottom: 0; width: 100%; background: #fff; border-top: 2px solid #ba8b5e; z-index: 200; padding: 10px; box-shadow: 0 -5px 15px rgba(0,0,0,0.2); }
         .coop-textarea { width: 100%; height: 80px; border: 1px solid #ccc; border-radius: 10px; padding: 10px; font-size: 13px; resize: none; margin-bottom: 8px; }
         .coop-btns { display: flex; gap: 10px; }
         .btn-organize { flex: 1; background: #3e2723; color: #fff; border: none; border-radius: 10px; padding: 12px; font-weight: bold; cursor: pointer; }
         .btn-final-line { flex: 1; background: var(--line); color: #fff; border: none; border-radius: 10px; padding: 12px; font-weight: bold; cursor: pointer; }
         .summary-info { font-size: 14px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        
         .modal-bg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: #fff; width: 90%; max-width: 400px; padding: 20px; border-radius: 20px; text-align: center; max-height: 80vh; overflow-y: auto; }
         .log-list { text-align: left; background: #f9f9f9; padding: 15px; border-radius: 10px; margin: 15px 0; font-size: 14px; line-height: 1.6; border: 1px solid #eee; }
@@ -62,7 +71,10 @@
     <div id="order-ui" style="display:none">
         <div class="card">
             <div class="card-body">
-                <h2 id="cur-u-name" style="margin:0; color:#3e2723;"></h2>
+                <h2 id="cur-u-name" style="margin:0; color:#3e2723; margin-bottom:10px;"></h2>
+                
+                <div class="price-nav" id="price-nav"></div>
+                
                 <div id="menu-container"></div>
             </div>
         </div>
@@ -107,7 +119,7 @@
 <script>
     let users=[], cur=-1;
     let tempOrders = [];
-    const STORAGE_KEY = 'toast_helper_data';
+    const STORAGE_KEY = 'toast_helper_v6';
     const menuData = [
         { price: 18, items: ["野生藍莓", "甜心草莓", "巧克力", "爆漿奶油", "芝麻花生", "奶酥", "曼特寧咖啡"] },
         { price: 21, items: ["甲仙芋頭", "萬丹紅豆", "太妃糖", "花生大王"] },
@@ -151,12 +163,30 @@
         return { fee: totalFee, note: note };
     }
 
+    function scrollToPrice(price) {
+        const target = document.getElementById(`section-${price}`);
+        if (target) {
+            const offset = 120; // 考慮到 sticky header 的高度
+            const bodyRect = document.body.getBoundingClientRect().top;
+            const elementRect = target.getBoundingClientRect().top;
+            const elementPosition = elementRect - bodyRect;
+            const offsetPosition = elementPosition - offset;
+
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
+            });
+        }
+    }
+
     function initMenu() {
-        let h = '';
+        let menuHtml = '';
+        let navHtml = '';
         menuData.forEach(group => {
-            h += `<span class="section-h">${group.price} 元區</span>`;
+            navHtml += `<button class="nav-price-btn" onclick="scrollToPrice(${group.price})">$${group.price}</button>`;
+            menuHtml += `<span class="section-h" id="section-${group.price}">${group.price} 元區</span>`;
             group.items.forEach(name => {
-                h += `<div class="opt-row i-opt" data-price="${group.price}" data-name="${name}" onclick="setI(this)">
+                menuHtml += `<div class="opt-row i-opt" data-price="${group.price}" data-name="${name}" onclick="setI(this)">
                     <span class="opt-name">${name}</span>
                     <div class="qty-controls">
                         <button class="qty-btn" onclick="adj(this,-1)">-1</button>
@@ -167,12 +197,13 @@
                 </div>`;
             });
         });
-        document.getElementById('menu-container').innerHTML = h;
+        document.getElementById('menu-container').innerHTML = menuHtml;
+        document.getElementById('price-nav').innerHTML = navHtml;
     }
 
     function organizeText() {
         const text = document.getElementById('coop-input').value;
-        if(!text.trim()) return alert("請貼上文字內容");
+        if(!text.trim()) return alert("請貼上內容");
         const allItems = menuData.flatMap(g => g.items);
         tempOrders = [];
         let currentPerson = "";
@@ -196,7 +227,7 @@
         if(tempOrders.length > 0) {
             document.getElementById('report-list').innerHTML = tempOrders.map(o => `<b>${o.userName}</b>：${o.item} x ${o.qty}`).join('<br>');
             document.getElementById('report-modal').style.display = 'flex';
-        } else alert("無法辨識訂單，請確認格式");
+        } else alert("無法解析，請確認格式");
     }
 
     function closeReport(confirm) {
@@ -221,7 +252,7 @@
     function setI(el){ document.querySelectorAll('.i-opt').forEach(b=>b.classList.remove('active')); el.classList.add('active'); }
     function adj(btn,d){ event.stopPropagation(); let input=btn.parentNode.querySelector('.qty-input'); let v=(parseInt(input.value) || 0)+d; if(v<1) v=1; input.value=v; }
     function quickAdd(btn) {
-        event.stopPropagation(); if(cur < 0) return alert("請先新增或選擇人員");
+        event.stopPropagation(); if(cur < 0) return alert("請先新增人員");
         let row = btn.closest('.i-opt'), q = parseInt(row.querySelector('.qty-input').value) || 1;
         let n = row.dataset.name, p = parseInt(row.dataset.price);
         let ex = users[cur].orders.find(o => o.n === n);
